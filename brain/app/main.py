@@ -1,25 +1,37 @@
-from fastapi import FastAPI, HTTPException
-from app.schemas import ChatRequest, ChatResponse
-from app.state.session import session_manager
-from app.agents.orchestrator import orchestrator
-from app.config import settings
+import logging
+from fastapi import FastAPI
 
-app = FastAPI(title=settings.PROJECT_NAME, version="0.1.0")
+from app.schemas import IncomingMessage, BrainReply
+from app.state.session import get_session
 
-@app.get("/")
-def health_check():
-    return {"status": "ok", "service": settings.PROJECT_NAME}
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("brain")
 
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    try:
-        session = session_manager.get_or_create(request.senderId)
-        reply = await orchestrator.handle_message(session, request.message)
-        return ChatResponse(reply=reply, metadata={"senderId": request.senderId})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+app = FastAPI(title="Pizza Agent Brain")
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.post("/message", response_model=BrainReply)
+def handle_message(msg: IncomingMessage):
+    session = get_session(msg.user_id)
+    session.message_count += 1
+    log.info("user=%s type=%s content=%r", msg.user_id, msg.type, msg.content)
+
+    # Phase 2: fixed reply, just proves the loop and session state work.
+    # Later this line becomes: reply = orchestrator.run(session, msg)
+    if msg.type == "text":
+        text = (
+            f"Hi {msg.push_name or 'there'}! 🍕 This is the Pizza Hut assistant. "
+            f"(message #{session.message_count} in this session) "
+            f"You said: {msg.content}"
+        )
+    elif msg.type == "audio":
+        text = "Voice notes are coming soon! For now, please type your order 🙂"
+    else:
+        text = "I can only read text messages for now."
+
+    return BrainReply(reply_text=text)
