@@ -1,19 +1,20 @@
 [project]
-name = "whatsapp-agent"
+name = "pizza-agent-brain"
 version = "0.1.0"
-description = "Add your description here"
+description = "FastAPI backend and multi-agent brain for Pizza WhatsApp Agent"
 readme = "README.md"
 authors = [
     { name = "ashmax77", email = "ashenimalsha7@gmail.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.8.0",
+    "python-dotenv>=1.0.0",
     "gradio>=6.31.0",
     "openai>=3.46.0",
 ]
-
-[project.scripts]
-whatsapp-agent = "whatsapp_agent:main"
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13.0"]

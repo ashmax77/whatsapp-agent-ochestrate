@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  brain:
+    build:
+      context: ./brain
+      dockerfile: Dockerfile
+    container_name: pizza_brain
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./brain/.env
+    volumes:
+      - ./brain:/app
+    depends_on:
+      - redis
+      - qdrant
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: pizza_gateway
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./gateway/.env
+    volumes:
+      - ./gateway/auth_state:/app/auth_state
+    depends_on:
+      - brain
+
+  redis:
+    image: redis:7-alpine
+    container_name: pizza_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: pizza_qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  redis_data:
+  qdrant_data:
+
