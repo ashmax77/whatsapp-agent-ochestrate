@@ -1,5 +1,12 @@
+import sys
 import logging
+from pathlib import Path
 from fastapi import FastAPI
+
+# Ensure the 'brain' directory is in sys.path so 'import app...' works from anywhere
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 from app.schemas import IncomingMessage, BrainReply
 from app.state.session import get_session
@@ -35,3 +42,8 @@ def handle_message(msg: IncomingMessage):
         text = "I can only read text messages for now."
 
     return BrainReply(reply_text=text)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
