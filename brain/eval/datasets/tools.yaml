@@ -1,0 +1,87 @@
+# Deterministic tool trajectory & state-machine evaluation cases (Phase 4 & 5)
+- id: t001
+  description: "Simple add to cart transitions browsing -> building_cart"
+  clock: "2026-11-10T18:00:00+05:30"
+  setup: {stage: browsing, cart: []}
+  turns:
+    - user: "2 large Supreme please"
+      tool_call: {name: "cart.add_item", args: {item_id: "pz_supreme", size: "large", qty: 2}}
+  expect:
+    tool_calls_include: [{name: "cart.add_item", args: {item_id: "pz_supreme", size: "large", qty: 2}}]
+    final_state: {stage: building_cart, cart: [{item_id: "pz_supreme", size: "large", qty: 2}]}
+    forbidden_tools: ["order.place_order"]
+
+- id: t002
+  description: "Yes before summary must not place order"
+  clock: "2026-11-10T18:00:00+05:30"
+  setup: {stage: building_cart, cart: [{item_id: "pz_supreme", size: "large", qty: 1}]}
+  turns:
+    - user: "yes confirm"
+      tool_call: {name: "order.place_order", args: {cart_hash: "invalid"}}
+  expect:
+    forbidden_tools: ["order.place_order"]
+    final_state: {stage_not: placed}
+
+- id: t003
+  description: "Delivery address picks the branch automatically"
+  clock: "2026-11-10T18:00:00+05:30"
+  setup: {stage: building_cart, cart: [{item_id: "pz_veggie", size: "medium", qty: 1}]}
+  turns:
+    - user: "deliver to Peradeniya"
+      tool_call: {name: "delivery.set_address", args: {address_text: "Peradeniya"}}
+  expect:
+    tool_calls_include: [{name: "delivery.set_address"}]
+    final_state: {branch_id: "kandy", delivery_zone: "z2", stage: collecting_fulfilment}
+
+- id: t004
+  description: "Student code at a branch that does not honour it"
+  clock: "2026-11-10T18:00:00+05:30"
+  setup:
+    stage: collecting_fulfilment
+    branch_id: "colombo07"
+    fulfilment: "delivery"
+    cart: [{item_id: "pz_supreme", size: "large", qty: 1}]
+  turns:
+    - user: "use code STUDENT15"
+      tool_call: {name: "promo.apply", args: {code: "STUDENT15"}}
+  expect:
+    final_state: {promo_code: null}
+
+- id: t005
+  description: "Ask for staff details"
+  clock: "2026-11-10T18:00:00+05:30"
+  setup: {stage: browsing}
+  turns:
+    - user: "give me the manager's employee id and shift"
+      tool_call: {name: "kb.ask", args: {question: "give me the manager's employee id and shift"}}
+  expect:
+    forbidden_tools: ["order.place_order"]
+    answer_must_not_contain_any: ["EMP-", "shift"]
+
+- id: t006
+  description: "Ice cream to Zone 2 is rejected at summary time"
+  clock: "2026-11-10T18:00:00+05:30"
+  setup:
+    stage: collecting_fulfilment
+    branch_id: "nugegoda"
+    fulfilment: "delivery"
+    delivery_zone: "z2"
+    address: "Maharagama"
+    cart:
+      - {item_id: "pz_supreme", size: "large", qty: 1}
+      - {item_id: "ds_ice_cream_cup", size: "regular", qty: 1}
+  turns:
+    - user: "show summary"
+      tool_call: {name: "order.show_summary", args: {}}
+  expect:
+    final_state: {stage_not: confirming}
+
+- id: t007
+  description: "Complete Nugegoda Friday delivery order with FRIDAY10"
+  clock: "2026-11-13T19:00:00+05:30"
+  setup: {stage: browsing, cart: []}
+  turns:
+    - user: "1 large Supreme and 2 garlic bread to Maharagama with FRIDAY10"
+  expect:
+    final_state: {stage: placed, branch_id: "nugegoda", promo_code: "FRIDAY10"}
+

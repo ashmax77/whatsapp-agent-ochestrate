@@ -34,6 +34,7 @@ ENV/
 
 # Data & Vector Storage
 brain/data/*.json
+brain/data/*.db
 data/menu.json
 brain/data/chroma/
 data/chroma/
