@@ -56,6 +56,10 @@ class Settings(BaseModel):
     DATA_DIR: Path = BASE_DIR / "data"
     MENU_FILE_PATH: Path = DATA_DIR / "menu.json"
     BRANCHES_FILE_PATH: Path = DATA_DIR / "branches.json"
+    PROMOS_FILE_PATH: Path = DATA_DIR / "promos.json"
+    DB_PATH: Path = Field(
+        default_factory=lambda: Path(os.getenv("DB_PATH", str(BASE_DIR / "data" / "orders.db")))
+    )
     KB_PATH: Path = DATA_DIR / "knowledge"
     CHROMA_PATH: Path = DATA_DIR / "chroma"
     
