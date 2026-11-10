@@ -1,7 +1,10 @@
+import asyncio
 import unittest
+from unittest.mock import patch
 from app.schemas import IncomingMessage, BrainReply
 from app.state.session import get_session
 from app.main import handle_message
+from app.llm.client import LLMResponse
 
 
 class TestBrainAPI(unittest.TestCase):
@@ -31,9 +34,14 @@ class TestBrainAPI(unittest.TestCase):
             content="What are your vegetarian options?",
             push_name="Test"
         )
-        reply = handle_message(msg)
-        self.assertIsNotNone(reply.reply_text)
-        self.assertGreater(len(reply.reply_text), 0)
+        with patch("app.agents.orchestrator.llm_client.complete") as mock_complete:
+            mock_complete.return_value = LLMResponse(
+                text="We have Veggie Supreme and Margherita pizzas!",
+                tool_calls=[],
+            )
+            reply = asyncio.run(handle_message(msg))
+            self.assertIsNotNone(reply.reply_text)
+            self.assertIn("Veggie", reply.reply_text)
 
 
 if __name__ == "__main__":
