@@ -11,8 +11,8 @@ An intelligent, multi-agent WhatsApp assistant for Pizza Hut (operating across m
 | **Phase 1** | Baileys WhatsApp Gateway (Node.js) | ✅ Completed |
 | **Phase 2** | FastAPI Brain Skeleton & Session State | ✅ Completed |
 | **Phase 3** | Knowledge Base, Validator & Commercialized Hybrid RAG Pipeline | ✅ Completed |
-| **Phase 4** | Deterministic Tools & Agents (Branch, Order, Delivery, Promo, SQLite) | ⏳ Next |
-| **Phase 5** | Central Orchestrator Agent, State Machine & Redis Sessions | 🔜 Planned |
+| **Phase 4** | Deterministic Tools & Agents (Branch, Order, Delivery, Promo, SQLite) | ✅ Completed |
+| **Phase 5** | Central Orchestrator Agent, State Machine & Redis Sessions | ⏳ Next |
 | **Phase 6** | Voice Notes (Audio Conversion & Faster-Whisper STT) | 🔜 Planned |
 | **Phase 7** | Escalation Agent, Post-Order Tracking & Staff Notifications | 🔜 Planned |
 | **Phase 8** | Multi-Layer Evaluation Pipeline (L0–L5) | 🔜 Planned |
@@ -54,32 +54,46 @@ pizza-agent/
     │   ├── llm/
     │   │   └── client.py           # Unified LLM completion & embedding facade (retries, timeouts)
     │   ├── services/
-    │   │   └── menu_repo.py        # Structured menu item, combo & availability repository
+    │   │   ├── clock.py            # Injectable Asia/Colombo clock for opening-hours & date tests
+    │   │   ├── menu_repo.py        # Structured menu item, option, crust, topping & combo repo
+    │   │   ├── branch_repo.py      # Haversine pin & fuzzy alias branch/zone resolver + hours check
+    │   │   ├── promo_repo.py       # Deterministic promo validator (days, dates, branches, min spend)
+    │   │   └── pricing.py          # Pure integer-LKR pricing engine & WhatsApp receipt formatter
     │   ├── state/
-    │   │   └── session.py          # Per-customer session state & conversation history
+    │   │   └── session.py          # Per-customer Session, CartLine, summary_hash & state transitions
     │   ├── agents/                 # Multi-agent orchestrator & specialists
     │   │   ├── base.py             # BaseAgent interface
     │   │   ├── knowledge_agent.py  # Commercial RAG agent (rewriting, deterministic routing, citations)
     │   │   ├── orchestrator.py     # Central intent router and coordinator
     │   │   ├── menu_agent.py       # Menu inquiries, pricing, customization
-    │   │   ├── order_agent.py      # Cart operations & validation
-    │   │   ├── delivery_agent.py   # Address resolution & delivery estimation
-    │   │   ├── promo_agent.py      # Promo codes & discount validation
+    │   │   ├── order_agent.py      # Deterministic agent owning cart, fulfilment, summary & place_order
+    │   │   ├── delivery_agent.py   # Deterministic agent owning branch.list, set_address & quote
+    │   │   ├── promo_agent.py      # Deterministic agent owning promo.apply & promo.remove
     │   │   ├── escalation_agent.py # Complaint detection & staff handoff
     │   │   └── post_order_agent.py # Order status tracking
     │   ├── tools/
-    │   │   └── kb_tools.py         # Agent tools (kb_ask, kb_search, menu_get_item, menu_list_items)
+    │   │   ├── registry.py         # Tool registry with Pydantic schemas & state-machine stage guards
+    │   │   ├── kb_tools.py         # Knowledge & menu tools (kb.ask, kb.search, menu.get_item, etc.)
+    │   │   ├── branch_tools.py     # Branch listing tool (branch.list)
+    │   │   ├── cart_tools.py       # Cart CRUD & combo validation (cart.add_item, add_combo, etc.)
+    │   │   ├── delivery_tools.py   # Address/pin resolution & delivery quote (delivery.set_address, quote)
+    │   │   ├── promo_tools.py      # Promo code application & removal (promo.apply, promo.remove)
+    │   │   ├── order_tools.py      # Fulfilment, pickup, summary & two-step place_order tools
+    │   │   └── cli.py              # Zero-LLM CLI tool harness (python -m app.tools.cli --demo)
     │   ├── rag/                    # Commercialized Hybrid RAG Pipeline
     │   │   ├── text.py             # Tokenizer, stopword removal, and word stemmer
     │   │   ├── kb_loader.py        # Safe loader, text cleaner, smart header chunker & summary tables
-    │   │   ├── validate_kb.py      # Front-matter validator, PII checker & pre-flight chunk gate
+    │   │   ├── validate_kb.py      # Front-matter, PII, pre-flight & menu/offer/branch consistency validator
     │   │   ├── embeddings.py       # API & deterministic local embedding service with backend tracking
     │   │   ├── ingest.py           # Zero-downtime blue/green index builder, manifest swap & pruning
     │   │   └── retriever.py        # Dynamic manifest hot-swap, RBAC, hybrid BM25 + vector & reranker
     │   ├── voice/                  # (Phase 6) STT and TTS handlers (stt.py, tts.py)
-    │   └── db/                     # Database persistence (SQLite / PostgreSQL)
+    │   └── db/                     # SQLite / PostgreSQL persistence
+    │       ├── models.py           # Customer, Order, OrderItem, Handoff, MessageLog models
+    │       └── order_repo.py       # SQLite repository with PH-YYYYMMDD-NNNN order numbering
     ├── data/
     │   ├── branches.json           # Outlet coordinates, hours, cutoffs, delivery zones & area aliases
+    │   ├── promos.json             # Structured promo rules (FRIDAY10, STUDENT15, expired offers)
     │   ├── menu.json               # Structured source of truth for LKR prices, sizes & combos (git-ignored)
     │   ├── chroma/                 # Versioned blue/green vector builds & index_info.json (git-ignored)
     │   └── knowledge/              # Curated multi-folder knowledge base (29 Markdown files)
@@ -94,6 +108,9 @@ pizza-agent/
     │       ├── menu/               # Pizzas, sides, desserts, beverages, customization, allergens
     │       ├── offers/             # Current offers, expired offers, loyalty program
     │       └── policies/           # Ordering & delivery, payment & refunds, cancellation, food safety
+    ├── eval/
+    │   └── datasets/
+    │       └── tools.yaml          # Deterministic tool-trajectory & state-machine evaluation cases
     ├── tests/
     │   ├── helpers.py              # Hermetic TempIndex & OfflineLLM test fixtures
     │   ├── test_api.py             # API schema, session state & /message route tests
@@ -101,7 +118,8 @@ pizza-agent/
     │   ├── test_ingest.py          # Blue/green builds, atomic manifest, pruning & rollback tests
     │   ├── test_menu_repo.py       # Structured menu item, combo & availability tests
     │   ├── test_rag_retrieval.py   # Hybrid search, leak probes, RBAC, manifest hot-swap & BM25 tests
-    │   └── test_rag_exam.py        # Automated Golden Set Exam (accuracy, memory, routing, leak guards)
+    │   ├── test_rag_exam.py        # Automated Golden Set Exam (accuracy, memory, routing, leak guards)
+    │   └── test_phase4_orders.py   # Pricing, branch/zone, hours, promos, state-machine & DB order tests
     ├── start.bat                   # Windows CMD startup script
     ├── start.ps1                   # Windows PowerShell startup script
     ├── requirements.txt
@@ -131,6 +149,24 @@ pizza-agent/
 - **Conversational Query Rewriting**: Resolves pronouns and follow-up references (*"Is it spicy?"*, *"What about Kandy?"*) into standalone search queries using recent session history.
 - **Deterministic Menu Routing**: Intercepts counting, listing, and price-threshold questions (*"How many vegetarian pizzas do you have?"*, *"Which pizzas are under LKR 2,000?"*) and computes exact answers in Python from `menu.json`—ensuring the LLM never guesses counts or prices.
 - **Strict Grounding & Verified Citations**: Formats retrieved chunks as numbered sources `[1]`, `[2]`, enforces availability notes from `menu_repo`, maps cited markers back to source chunk IDs for audit logs, and strips bracket markers from the customer's WhatsApp reply.
+
+---
+
+## Deterministic Order Engine, State Machine & Tools (Phase 4)
+
+All order, cart, branch, delivery, and promo calculations run in 100% deterministic Python code—never inside an LLM:
+
+- **Pure Integer-LKR Pricing (`app/services/pricing.py`)**: Computes unit prices, crust/topping surcharges, food subtotals, zone delivery fees, and `ROUND_HALF_UP` promo discounts in integer LKR. Promo discounts apply strictly to the food subtotal and never reduce the delivery fee.
+- **Multi-Branch & Zone Resolution (`app/services/branch_repo.py`)**:
+  - **Location Pins**: Uses Haversine distance to select the nearest outlet within its `max_km` radius (Colombo 07: 8 km, Nugegoda: 8 km, Kandy: 6 km) and assigns Zone 1 (0–3 km, free delivery) or Zone 2 (LKR 250 fee).
+  - **Address Text**: Matches against each branch's `area_aliases` (exact + fuzzy matching $\ge 85$), returning `NEEDS_CLARIFICATION` on ambiguous text or `OUT_OF_AREA` for out-of-coverage towns.
+  - **Opening Hours & Cutoffs**: Validates `Asia/Colombo` time against `last_delivery_order` (22:30 Colombo/Nugegoda, 22:00 Kandy) and `last_dine_in_order` (22:15 Colombo/Nugegoda, 21:45 Kandy).
+- **Deterministic Promo Validation (`app/services/promo_repo.py`)**: Enforces day-of-week (`FRIDAY10` on Fridays, `STUDENT15` on Tuesdays), expiration dates (`MONSOON` and `AVURUDU` flagged as expired), minimum food subtotals, branch restrictions (`STUDENT15` valid at Nugegoda and Kandy only), and student ID reminders.
+- **Two-Step Confirmation State Machine (`app/tools/registry.py` & `order_tools.py`)**:
+  - Enforces stage transitions (`browsing` $\to$ `building_cart` $\to$ `collecting_fulfilment` $\to$ `confirming` $\to$ `placed`).
+  - Rejects zone-restricted items outside their allowed zone (e.g. `ds_ice_cream_cup` in Zone 2) and enforces the LKR 1,500 minimum delivery subtotal.
+  - `order.show_summary` computes a cryptographic `summary_hash` and records `summary_msg_no`. Any subsequent edit to cart, branch, address, or promo immediately invalidates `summary_hash`.
+  - `order.place_order` requires a matching `cart_hash` on a **later** message turn (`message_count > summary_msg_no`) and persists the order to SQLite (`app/db/order_repo.py`) with a human-friendly order number (`PH-YYYYMMDD-NNNN`).
 
 ---
 
@@ -219,15 +255,21 @@ Scan the terminal QR code using WhatsApp (**Linked Devices > Link a Device**) to
 
 ---
 
-### 3. Running Automated Tests & Golden Set Evaluation
+### 3. Running Automated Tests, CLI Tool Harness & Golden Set Evaluation
 
-Run the full 42-test suite (unit tests, blue/green ingestion tests, RBAC leak probes, and the Golden Set RAG Exam) inside `brain/`:
+Run the full 50-test suite (unit tests, Phase 4 order/pricing/branch/promo tests, blue/green ingestion tests, RBAC leak probes, and the Golden Set RAG Exam) inside `brain/`:
 
 ```powershell
 cd brain
 
-# Run all unit tests and hermetic Golden Set exam
+# Run the zero-LLM deterministic order flow CLI demo
+.\.venv\Scripts\python.exe -m app.tools.cli --demo
+
+# Run all 50 unit & integration tests
 .\.venv\Scripts\python.exe -m unittest discover tests
+
+# Run only the Phase 4 deterministic order & state-machine tests
+.\.venv\Scripts\python.exe -m unittest tests/test_phase4_orders.py
 
 # Run only the Golden Set RAG Exam (set RAG_EXAM_LIVE=1 to test against the live LLM)
 .\.venv\Scripts\python.exe -m unittest tests/test_rag_exam.py
