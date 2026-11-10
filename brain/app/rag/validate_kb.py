@@ -110,6 +110,37 @@ def check_pii(md_file: Path, kb_path: Path) -> List[str]:
     return errors
 
 
+REQUIRED_CHUNK_META = ("audience", "folder", "title")
+
+
+def preflight_check(chunks) -> List[str]:
+    """
+    Checks the chunks before any embedding money is spent (1Ingestion.ipynb, section 7).
+    Returns a list of errors; an empty list means the chunks are safe to embed.
+    Shared by validate_kb (CLI) and ingest (build gate).
+    """
+    errors: List[str] = []
+    if len(chunks) == 0:
+        return ["No chunks were created. Check KB_PATH and the markdown headings."]
+
+    for chunk in chunks:
+        text = (chunk.text or "").strip()
+        if not text:
+            errors.append(f"[{chunk.id}] Empty chunk text")
+        elif len(text) > settings.MAX_CHUNK_CHARS:
+            errors.append(f"[{chunk.id}] Chunk is {len(text)} characters (limit {settings.MAX_CHUNK_CHARS})")
+
+        missing = [key for key in REQUIRED_CHUNK_META if not chunk.meta.get(key)]
+        if missing:
+            errors.append(f"[{chunk.id}] Missing metadata: {', '.join(missing)}")
+
+        folder = str(chunk.meta.get("folder", ""))
+        if chunk.meta.get("audience") != "customer" or folder.split("/")[0] in settings.KB_EXCLUDE_DIRS:
+            errors.append(f"[{chunk.id}] Non-customer chunk in customer build (audience/folder leak)")
+
+    return errors
+
+
 def validate_kb() -> bool:
     kb_path = settings.KB_PATH
     if not kb_path.exists():
@@ -126,6 +157,14 @@ def validate_kb() -> bool:
         if md_file.name == "README.md":
             continue
 
+        # A file that is not UTF-8 would be skipped by ingest; the validator flags it
+        try:
+            md_file.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            rel_str = md_file.relative_to(kb_path).as_posix()
+            all_errors.append(f"[{rel_str}] File is not valid UTF-8 (ingest would skip it)")
+            continue
+
         fm_errors = check_front_matter(md_file, kb_path)
         all_errors.extend(fm_errors)
 
@@ -135,6 +174,16 @@ def validate_kb() -> bool:
 
         pii_errors = check_pii(md_file, kb_path)
         all_errors.extend(pii_errors)
+
+    # Pre-flight: the exact chunks ingest would embed for the customer build
+    from app.rag.kb_loader import KBLoader
+    loader = KBLoader(kb_path=kb_path)
+    try:
+        chunks = loader.load_chunks(include_internal=False)
+        all_errors.extend(preflight_check(chunks))
+        log.info("Pre-flight: %d customer chunks checked", len(chunks))
+    except ValueError as e:
+        all_errors.append(f"Chunking failed: {e}")
 
     for w in all_warnings:
         log.warning(w)

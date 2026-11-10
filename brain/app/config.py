@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 from pydantic import BaseModel, Field
 
 # Base directory for brain
@@ -62,8 +62,41 @@ class Settings(BaseModel):
     # RAG Configuration
     KB_EXCLUDE_DIRS: List[str] = ["internal"]
     KB_EXCLUDE_FILES: List[str] = ["README.md"]
-    RAG_TOP_K: int = 4
-    RAG_DISTANCE_CUTOFF: float = 0.65  # Cosine distance cutoff (1.0 - cosine_sim)
+    RAG_TOP_K: int = 4  # Best chunks handed to the LLM after reranking
+    RAG_DISTANCE_CUTOFF: float = 0.65  # Cosine distance cutoff (1.0 - cosine_sim), legacy helper
+
+    # Ingestion: chunking (characters) and blue/green build retention
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 100
+    MIN_CHUNK_SIZE: int = 40  # Sections shorter than this are just titles; skipped
+    MAX_CHUNK_CHARS: int = 1600  # Pre-flight hard limit (context header + section)
+    BUILDS_TO_KEEP: int = 2  # Newest build is live, the one before it is a backup
+    INDEX_INFO_FILE: Path = DATA_DIR / "chroma" / "index_info.json"  # Manifest
+
+    # Retrieval: hybrid search, reranking and relevance gate
+    RAG_SEARCH_RESULTS: int = 20  # Candidates per search method before reranking
+    MIN_RELEVANCE_SCORE: float = Field(
+        default_factory=lambda: float(os.getenv("MIN_RELEVANCE_SCORE", "0.30"))
+    )
+    # Optional cross-encoder (needs sentence-transformers). Empty = built-in fusion reranker
+    RERANKER_MODEL: str = Field(default_factory=lambda: os.getenv("RERANKER_MODEL", ""))
+    RERANKER_MIN_SCORE: float = Field(
+        default_factory=lambda: float(os.getenv("RERANKER_MIN_SCORE", "-9"))
+    )
+
+    # Search-time access control: role -> top-level KB folders it may search
+    ROLE_ACCESS: Dict[str, List[str]] = {
+        "customer": ["menu", "branches", "offers", "policies", "company", "faq"],
+        "staff": ["menu", "branches", "offers", "policies", "company", "faq"],
+        "manager": ["menu", "branches", "offers", "policies", "company", "faq", "internal"],
+    }
+
+    # Knowledge agent guards
+    MAX_QUESTION_LENGTH: int = 1000
+    MAX_HISTORY_MESSAGES: int = 10
+    SHOW_CITATIONS: bool = Field(
+        default_factory=lambda: os.getenv("SHOW_CITATIONS", "false").lower() == "true"
+    )
 
     # Business Rules & State
     MIN_ORDER_LKR: int = 1500
