@@ -111,6 +111,123 @@ def check_pii(md_file: Path, kb_path: Path) -> List[str]:
 
 
 REQUIRED_CHUNK_META = ("audience", "folder", "title")
+BRANCH_MD_MAP = {
+    "colombo07": "branches/colombo-07.md",
+    "nugegoda": "branches/nugegoda.md",
+    "kandy": "branches/kandy.md",
+}
+NON_ITEM_MENU_HEADINGS = frozenset({
+    "currency",
+    "hot beverages (dine-in only)",
+})
+
+
+def check_offer_consistency(kb_path: Path) -> List[str]:
+    """
+    Verifies that every promo code in offers/current-offers.md exists in promos.json,
+    and every active promo in promos.json is described in offers/current-offers.md.
+    """
+    from datetime import date
+    from app.services.promo_repo import PromoRepo
+
+    errors: List[str] = []
+    offers_md = kb_path / "offers" / "current-offers.md"
+    if not offers_md.exists() or not settings.PROMOS_FILE_PATH.exists():
+        return errors
+
+    content = offers_md.read_text(encoding="utf-8")
+    repo = PromoRepo(promos_path=settings.PROMOS_FILE_PATH)
+
+    # Extract codes like "(code FRIDAY10)" from headings
+    codes_in_md = [m.upper() for m in re.findall(r"\(code\s+([A-Za-z0-9_-]+)\)", content, flags=re.IGNORECASE)]
+    for code in codes_in_md:
+        if not repo.get_promo(code):
+            errors.append(f"[offers/current-offers.md] Promo code '{code}' is missing from promos.json")
+
+    # Every active promo (as of KB reference date 2026-11-09) must appear in current-offers.md
+    for promo in repo.list_promos(active_only=True, on_date=date(2026, 11, 9)):
+        if promo.code not in content:
+            errors.append(
+                f"[promos.json] Active promo '{promo.code}' is not documented in offers/current-offers.md"
+            )
+
+    return errors
+
+
+def check_branch_consistency(kb_path: Path) -> List[str]:
+    """
+    Verifies that opening hours, cut-off times, and delivery radius in branches/*.md
+    match branches.json.
+    """
+    from app.services.branch_repo import BranchRepo
+
+    errors: List[str] = []
+    if not settings.BRANCHES_FILE_PATH.exists():
+        return errors
+
+    repo = BranchRepo(branches_path=settings.BRANCHES_FILE_PATH)
+    for branch in repo.list_branches():
+        rel_md = BRANCH_MD_MAP.get(branch.id)
+        if not rel_md:
+            continue
+        md_path = kb_path / rel_md
+        if not md_path.exists():
+            errors.append(f"[branches.json] Missing branch KB file '{rel_md}' for branch '{branch.id}'")
+            continue
+
+        text = md_path.read_text(encoding="utf-8")
+        for label, expected in (
+            ("open time", branch.hours.open),
+            ("close time", branch.hours.close),
+            ("last_delivery_order", branch.last_delivery_order),
+            ("last_dine_in_order", branch.last_dine_in_order),
+            ("max_km radius", f"{int(branch.max_km)} km"),
+        ):
+            if expected not in text:
+                errors.append(
+                    f"[{rel_md}] Branch '{branch.id}' {label} '{expected}' from branches.json not found in markdown"
+                )
+
+    return errors
+
+
+def check_menu_consistency(kb_path: Path) -> List[str]:
+    """
+    Verifies that headings in menu/*.md map to items in menu.json and every
+    available item in menu.json is represented in the menu KB.
+    """
+    from app.services.menu_repo import menu_repo
+
+    errors: List[str] = []
+    menu_files = ["menu/pizzas.md", "menu/sides-and-desserts.md", "menu/beverages.md"]
+    combined_menu_text = ""
+
+    for rel in menu_files:
+        p = kb_path / rel
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8")
+        combined_menu_text += "\n" + text.lower()
+        for heading in re.findall(r"^##\s+(.+)$", text, flags=re.MULTILINE):
+            h_clean = heading.strip()
+            if h_clean.lower() in NON_ITEM_MENU_HEADINGS:
+                continue
+            # "Soft drinks" covers both 500ml and 1.5L soft drink items
+            if h_clean.lower() == "soft drinks":
+                if not menu_repo.get_item("bv_soft_drink_500"):
+                    errors.append(f"[{rel}] Heading '{h_clean}' has no matching soft drink item in menu.json")
+                continue
+            if not menu_repo.find_by_name(h_clean):
+                errors.append(f"[{rel}] Heading '{h_clean}' does not match any item in menu.json")
+
+    for item in menu_repo.get_all_items():
+        if not item.available:
+            continue
+        base_name = re.sub(r"\s*\([^)]*\)", "", item.name).strip().lower()
+        if base_name not in combined_menu_text and item.id.lower() not in combined_menu_text:
+            errors.append(f"[menu.json] Available item '{item.name}' ({item.id}) is missing from menu/*.md")
+
+    return errors
 
 
 def preflight_check(chunks) -> List[str]:
@@ -184,6 +301,11 @@ def validate_kb() -> bool:
         log.info("Pre-flight: %d customer chunks checked", len(chunks))
     except ValueError as e:
         all_errors.append(f"Chunking failed: {e}")
+
+    # Cross-check KB markdown against structured data files (menu.json, promos.json, branches.json)
+    all_errors.extend(check_menu_consistency(kb_path))
+    all_errors.extend(check_offer_consistency(kb_path))
+    all_errors.extend(check_branch_consistency(kb_path))
 
     for w in all_warnings:
         log.warning(w)
