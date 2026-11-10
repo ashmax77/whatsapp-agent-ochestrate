@@ -34,8 +34,12 @@ def handle_message(msg: IncomingMessage):
         if not content:
             text = "Hello! How can I help you today? 🍕"
         else:
+            # Prior turns (excluding this message) feed the query rewriter
             result = knowledge_agent.ask(question=content, session=session)
             text = result.get("answer", "")
+            log.info("knowledge route=%s sources=%s", result.get("route"), result.get("sources"))
+            session.add_history("user", content)
+            session.add_history("assistant", text)
     elif msg.type == "audio":
         text = "Voice notes are coming soon! For now, please type your order 🙂"
     else:
