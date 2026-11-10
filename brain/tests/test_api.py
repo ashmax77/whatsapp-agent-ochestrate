@@ -1,21 +1,40 @@
 import unittest
-from app.schemas import ChatRequest, ChatResponse
-from app.state.session import session_manager
+from app.schemas import IncomingMessage, BrainReply
+from app.state.session import get_session
+from app.main import handle_message
 
-class TestBrainLogic(unittest.TestCase):
+
+class TestBrainAPI(unittest.TestCase):
     def test_schemas(self):
-        req = ChatRequest(senderId="12345@s.whatsapp.net", message="Hello")
-        self.assertEqual(req.senderId, "12345@s.whatsapp.net")
-        self.assertEqual(req.message, "Hello")
+        req = IncomingMessage(
+            user_id="9470000000",
+            type="text",
+            content="Hello",
+            push_name="Ashen"
+        )
+        self.assertEqual(req.user_id, "9470000000")
+        self.assertEqual(req.content, "Hello")
 
-        res = ChatResponse(reply="Welcome!")
-        self.assertEqual(res.reply, "Welcome!")
+        res = BrainReply(reply_text="Welcome to Pizza Hut! 🍕")
+        self.assertEqual(res.reply_text, "Welcome to Pizza Hut! 🍕")
 
-    def test_session_manager(self):
-        session = session_manager.get_or_create("12345@s.whatsapp.net")
-        session.add_message("user", "Hello")
+    def test_session_state(self):
+        session = get_session("test_user_123")
+        session.add_history("user", "Hello")
         self.assertEqual(len(session.history), 1)
         self.assertEqual(session.history[0]["content"], "Hello")
+
+    def test_handle_message_route(self):
+        msg = IncomingMessage(
+            user_id="test_user_456",
+            type="text",
+            content="What are your vegetarian options?",
+            push_name="Test"
+        )
+        reply = handle_message(msg)
+        self.assertIsNotNone(reply.reply_text)
+        self.assertGreater(len(reply.reply_text), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

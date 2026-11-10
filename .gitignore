@@ -32,6 +32,12 @@ env/
 venv/
 ENV/
 
+# Data & Vector Storage
+brain/data/*.json
+data/menu.json
+brain/data/chroma/
+data/chroma/
+
 # Testing & IDE
 .pytest_cache/
 .coverage
