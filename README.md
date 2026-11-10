@@ -12,8 +12,8 @@ An intelligent, multi-agent WhatsApp assistant for Pizza Hut (operating across m
 | **Phase 2** | FastAPI Brain Skeleton & Session State | ✅ Completed |
 | **Phase 3** | Knowledge Base, Validator & Commercialized Hybrid RAG Pipeline | ✅ Completed |
 | **Phase 4** | Deterministic Tools & Agents (Branch, Order, Delivery, Promo, SQLite) | ✅ Completed |
-| **Phase 5** | Central Orchestrator Agent, State Machine & Redis Sessions | ⏳ Next |
-| **Phase 6** | Voice Notes (Audio Conversion & Faster-Whisper STT) | 🔜 Planned |
+| **Phase 5** | Central Orchestrator Agent, State Machine & Redis Sessions | ✅ Completed |
+| **Phase 6** | Voice Notes (Audio Conversion & Faster-Whisper STT) | ⏳ Next |
 | **Phase 7** | Escalation Agent, Post-Order Tracking & Staff Notifications | 🔜 Planned |
 | **Phase 8** | Multi-Layer Evaluation Pipeline (L0–L5) | 🔜 Planned |
 | **Phase 9** | Production Hardening & Cloud Deployment | 🔜 Planned |
@@ -31,6 +31,7 @@ The system is decoupled into two primary services:
 pizza-agent/
 ├── .gitignore
 ├── docker-compose.yml              # Multi-container orchestration (gateway, brain, redis, qdrant)
+├── docker-compose.dev.yml          # Local development stack (Redis 7 on port 6379)
 ├── plan.md                         # Comprehensive phase-by-phase implementation plan
 ├── README.md                       # Project documentation
 ├── architecture.jpg                # Architecture diagram
@@ -48,9 +49,9 @@ pizza-agent/
 │
 └── brain/                          # Python: FastAPI AI backend & multi-agent system
     ├── app/
-    │   ├── main.py                 # FastAPI entrypoint (/health, /message) with chat history wiring
-    │   ├── config.py               # Pydantic settings (LLM, RAG, RBAC, chunking, thresholds)
-    │   ├── schemas.py              # Request/response models (IncomingMessage, BrainReply)
+    │   ├── main.py                 # Async FastAPI entrypoint (/health, /message) routed through orchestrator
+    │   ├── config.py               # Pydantic settings (LLM, Redis, TTLs, rate limits, RAG, thresholds)
+    │   ├── schemas.py              # Request/response models (IncomingMessage, BrainReply, BrainReplyMeta)
     │   ├── llm/
     │   │   └── client.py           # Unified LLM completion & embedding facade (retries, timeouts)
     │   ├── services/
@@ -58,13 +59,20 @@ pizza-agent/
     │   │   ├── menu_repo.py        # Structured menu item, option, crust, topping & combo repo
     │   │   ├── branch_repo.py      # Haversine pin & fuzzy alias branch/zone resolver + hours check
     │   │   ├── promo_repo.py       # Deterministic promo validator (days, dates, branches, min spend)
-    │   │   └── pricing.py          # Pure integer-LKR pricing engine & WhatsApp receipt formatter
+    │   │   ├── pricing.py          # Pure integer-LKR pricing engine & WhatsApp receipt formatter
+    │   │   ├── language.py         # Script-based language detector (Sinhala, Tamil, English/Singlish)
+    │   │   └── post_processor.py   # Reply price verification & hallucination defense
     │   ├── state/
-    │   │   └── session.py          # Per-customer Session, CartLine, summary_hash & state transitions
+    │   │   ├── session.py          # Per-customer Session, CartLine, summary_hash & singleton store factory
+    │   │   ├── session_store.py    # Abstract async SessionStore base class
+    │   │   ├── memory_store.py     # In-memory thread/asyncio-safe store with lock, dedupe & rate-limiting
+    │   │   └── redis_store.py      # Redis session store with JSON serialization, TTL & memory fallback
     │   ├── agents/                 # Multi-agent orchestrator & specialists
     │   │   ├── base.py             # BaseAgent interface
+    │   │   ├── prompts/
+    │   │   │   └── orchestrator_v1.md # Versioned orchestrator prompt (pricing integrity, confirmation rules)
+    │   │   ├── orchestrator.py     # Central orchestrator (session locking, dedupe, stage-aware tool loop)
     │   │   ├── knowledge_agent.py  # Commercial RAG agent (rewriting, deterministic routing, citations)
-    │   │   ├── orchestrator.py     # Central intent router and coordinator
     │   │   ├── menu_agent.py       # Menu inquiries, pricing, customization
     │   │   ├── order_agent.py      # Deterministic agent owning cart, fulfilment, summary & place_order
     │   │   ├── delivery_agent.py   # Deterministic agent owning branch.list, set_address & quote
@@ -119,7 +127,8 @@ pizza-agent/
     │   ├── test_menu_repo.py       # Structured menu item, combo & availability tests
     │   ├── test_rag_retrieval.py   # Hybrid search, leak probes, RBAC, manifest hot-swap & BM25 tests
     │   ├── test_rag_exam.py        # Automated Golden Set Exam (accuracy, memory, routing, leak guards)
-    │   └── test_phase4_orders.py   # Pricing, branch/zone, hours, promos, state-machine & DB order tests
+    │   ├── test_phase4_orders.py   # Pricing, branch/zone, hours, promos, state-machine & DB order tests
+    │   └── test_phase5_orchestrator.py # Session dedupe, rate limits, stage filtering & prompt safety tests
     ├── start.bat                   # Windows CMD startup script
     ├── start.ps1                   # Windows PowerShell startup script
     ├── requirements.txt
@@ -170,6 +179,30 @@ All order, cart, branch, delivery, and promo calculations run in 100% determinis
 
 ---
 
+## Central Orchestrator Agent, State Machine & Redis Sessions (Phase 5)
+
+Phase 5 introduces the central conversational orchestrator that glues together natural language understanding, stage-aware tool calling, resilient multi-session storage, and hallucination post-processing:
+
+- **Asynchronous SessionStore Abstraction (`app/state/session_store.py`)**:
+  - `MemorySessionStore`: Thread and asyncio-safe in-memory store featuring per-user `asyncio.Lock()`, message deduplication cache, and sliding-window rate limiting.
+  - `RedisSessionStore`: Distributed session store with JSON serialization, configurable TTL (`SESSION_TTL_SECONDS = 86400`), and automated graceful fallback to in-memory mode if Redis is offline or unconfigured.
+  - Local Redis dev environment pre-configured in `docker-compose.dev.yml` (`docker compose -f docker-compose.dev.yml up -d`).
+- **Stage-Aware Tool Filtering (`app/tools/registry.py`)**:
+  - Dynamically filters tool schemas exposed to the orchestrator model based on current `session.stage`.
+  - While `browsing`, cart mutations and order placement tools are concealed.
+  - While `building_cart` or `collecting_fulfilment`, cart updates and address resolution tools are active, but `order.place_order` remains strictly concealed.
+  - Only when the session enters `confirming` is `order.place_order` exposed to the model, preventing premature order placement.
+- **Prompt Versioning & System Rules (`app/agents/prompts/orchestrator_v1.md`)**:
+  - Versioned prompt template (`orchestrator_v1`) enforcing single-turn tool calling, concise WhatsApp formatting, strict pricing integrity (never calculate money in text), and refusing customer access to internal employee information.
+  - Incorporates dynamic session state block (cart items, branch hours, delivery zone, current stage, summary hash).
+- **Post-Processor Reply Verification (`app/services/post_processor.py`)**:
+  - Automatically verifies all price figures mentioned in the assistant's reply against deterministic tool outputs and cart totals.
+  - If a discrepancy or hallucinated price is detected, the post-processor corrects the text to the verified integer LKR amount or replaces it with the authentic receipt.
+- **Language Detection (`app/services/language.py`)**:
+  - Native script detection for Sinhala (`\u0D80-\u0DFF`) and Tamil (`\u0B80-\u0BFF`), defaulting to English / Singlish with matched language output.
+
+---
+
 ## Inter-Service Contract
 
 The Gateway communicates with the Brain via HTTP JSON:
@@ -182,14 +215,27 @@ The Gateway communicates with the Brain via HTTP JSON:
     "type": "text",
     "content": "How many vegetarian pizzas do you have?",
     "message_id": "ABC123XYZ",
-    "push_name": "Ashen"
+    "push_name": "Ashen",
+    "timestamp": "2026-11-10T12:00:00Z"
   }
   ```
 - **Response (`BrainReply`)**:
   ```json
   {
     "reply_text": "We have 3 vegetarian pizzas: Margherita, Veggie Delight and Cheese Lover. 🍕",
-    "reply_audio_url": null
+    "reply_audio_b64": null,
+    "reply_audio_mime": null,
+    "meta": {
+      "stage": "browsing",
+      "branch_id": "colombo07",
+      "trace_id": "a1b2c3d4",
+      "latency_ms": 124.5,
+      "usage": {
+        "prompt_tokens": 420,
+        "completion_tokens": 45,
+        "total_tokens": 465
+      }
+    }
   }
   ```
 
@@ -257,7 +303,7 @@ Scan the terminal QR code using WhatsApp (**Linked Devices > Link a Device**) to
 
 ### 3. Running Automated Tests, CLI Tool Harness & Golden Set Evaluation
 
-Run the full 50-test suite (unit tests, Phase 4 order/pricing/branch/promo tests, blue/green ingestion tests, RBAC leak probes, and the Golden Set RAG Exam) inside `brain/`:
+Run the full 60-test suite (unit tests, Phase 4 order/pricing/branch/promo tests, Phase 5 orchestrator/session tests, blue/green ingestion tests, RBAC leak probes, and the Golden Set RAG Exam) inside `brain/`:
 
 ```powershell
 cd brain
@@ -265,10 +311,13 @@ cd brain
 # Run the zero-LLM deterministic order flow CLI demo
 .\.venv\Scripts\python.exe -m app.tools.cli --demo
 
-# Run all 50 unit & integration tests
+# Run all 60 unit & integration tests
 .\.venv\Scripts\python.exe -m unittest discover tests
 
-# Run only the Phase 4 deterministic order & state-machine tests
+# Run Phase 5 orchestrator, session deduplication & state-machine filtering tests
+.\.venv\Scripts\python.exe -m unittest tests/test_phase5_orchestrator.py
+
+# Run Phase 4 deterministic order & pricing engine tests
 .\.venv\Scripts\python.exe -m unittest tests/test_phase4_orders.py
 
 # Run only the Golden Set RAG Exam (set RAG_EXAM_LIVE=1 to test against the live LLM)
