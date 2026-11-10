@@ -130,10 +130,13 @@ class ToolRegistry:
     def list_names(self) -> List[str]:
         return list(self._tools.keys())
 
-    def schemas(self) -> List[Dict[str, Any]]:
-        """Exports OpenAI function-calling tool schemas for all registered tools."""
+    def schemas(self, stage: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Exports OpenAI function-calling tool schemas, optionally filtered by session stage."""
         out = []
         for spec in self._tools.values():
+            if stage is not None and spec.allowed_stages is not None:
+                if stage not in spec.allowed_stages:
+                    continue
             json_schema = spec.schema_cls.model_json_schema()
             json_schema.pop("title", None)
             out.append({
@@ -145,6 +148,10 @@ class ToolRegistry:
                 },
             })
         return out
+
+    def tools_for_stage(self, stage: str) -> List[Dict[str, Any]]:
+        """Returns OpenAI function tool schemas valid for the given conversation stage."""
+        return self.schemas(stage=stage)
 
     def call(
         self,
@@ -243,36 +250,42 @@ class ToolRegistry:
             description="Add a menu item (with size, qty 1-20, notes, options) to the cart.",
             schema_cls=CartAddItemInput,
             handler=cart_add_item,
+            allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="cart.add_combo",
             description="Add a combo bundle (with slot choices) to the cart.",
             schema_cls=CartAddComboInput,
             handler=cart_add_combo,
+            allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="cart.update_item",
             description="Update quantity, size, notes, or options for a cart line.",
             schema_cls=CartUpdateItemInput,
             handler=cart_update_item,
+            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="cart.remove_item",
             description="Remove a line from the cart by its 0-based index.",
             schema_cls=CartRemoveItemInput,
             handler=cart_remove_item,
+            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="cart.view",
             description="View current cart lines and computed food subtotal in LKR.",
             schema_cls=EmptyInput,
             handler=cart_view,
+            allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="cart.clear",
             description="Clear all items from the cart and reset to browsing.",
             schema_cls=EmptyInput,
             handler=cart_clear,
+            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
         ))
 
         # Fulfilment & delivery tools
@@ -281,24 +294,28 @@ class ToolRegistry:
             description="Set fulfilment mode to 'delivery' or 'pickup'.",
             schema_cls=OrderSetFulfilmentInput,
             handler=order_set_fulfilment,
+            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="delivery.set_address",
             description="Resolve delivery address or location pin to a branch and delivery zone.",
             schema_cls=DeliverySetAddressInput,
             handler=delivery_set_address,
+            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="order.set_pickup",
             description="Set pickup branch and verify pickup opening hours.",
             schema_cls=OrderSetPickupInput,
             handler=order_set_pickup,
+            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="delivery.quote",
             description="Get delivery fee and ETA for the current branch and zone.",
             schema_cls=EmptyInput,
             handler=delivery_quote,
+            allowed_stages=["collecting_fulfilment", "confirming"],
         ))
 
         # Promo tools
@@ -307,12 +324,14 @@ class ToolRegistry:
             description="Validate and apply a promo code (e.g. FRIDAY10, STUDENT15) to the order.",
             schema_cls=PromoApplyInput,
             handler=promo_apply,
+            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="promo.remove",
             description="Remove the active promo code from the order.",
             schema_cls=EmptyInput,
             handler=promo_remove,
+            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
         ))
 
         # Order summary & checkout tools
@@ -335,6 +354,7 @@ class ToolRegistry:
             description="Cancel the current draft order and reset the session.",
             schema_cls=EmptyInput,
             handler=order_cancel_draft,
+            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
         ))
 
 

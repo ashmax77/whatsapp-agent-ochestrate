@@ -108,7 +108,23 @@ class Session(BaseModel):
         self.stage = "browsing"
 
 
-_SESSIONS: Dict[str, Session] = {}  # in-memory for now; swap for Redis in Phase 5
+_SESSIONS: Dict[str, Session] = {}
+_STORE_INSTANCE = None
+
+
+def get_session_store():
+    """Returns singleton SessionStore (RedisSessionStore if configured, else MemorySessionStore)."""
+    global _STORE_INSTANCE
+    if _STORE_INSTANCE is None:
+        from app.config import settings
+
+        if settings.REDIS_URL:
+            from app.state.redis_store import RedisSessionStore
+            _STORE_INSTANCE = RedisSessionStore(settings.REDIS_URL)
+        else:
+            from app.state.memory_store import MemorySessionStore
+            _STORE_INSTANCE = MemorySessionStore()
+    return _STORE_INSTANCE
 
 
 def get_session(user_id: str) -> Session:
@@ -120,4 +136,7 @@ def get_session(user_id: str) -> Session:
 
 
 def clear_sessions() -> None:
+    global _STORE_INSTANCE
     _SESSIONS.clear()
+    if _STORE_INSTANCE is not None and hasattr(_STORE_INSTANCE, "clear"):
+        _STORE_INSTANCE.clear()

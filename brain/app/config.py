@@ -62,6 +62,15 @@ class Settings(BaseModel):
     )
     KB_PATH: Path = DATA_DIR / "knowledge"
     CHROMA_PATH: Path = DATA_DIR / "chroma"
+    PROMPTS_DIR: Path = BASE_DIR / "app" / "agents" / "prompts"
+
+    # Session & Redis
+    REDIS_URL: str = Field(default_factory=lambda: os.getenv("REDIS_URL", ""))
+    SESSION_TTL_SECONDS: int = 86400  # 24 hours
+    DEDUPE_TTL_SECONDS: int = 600  # 10 minutes
+    RATE_LIMIT_PER_MINUTE: int = Field(
+        default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MINUTE", "20"))
+    )
     
     # RAG Configuration
     KB_EXCLUDE_DIRS: List[str] = ["internal"]

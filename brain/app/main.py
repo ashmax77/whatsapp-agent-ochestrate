@@ -8,9 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-from app.schemas import IncomingMessage, BrainReply
-from app.state.session import get_session
-from app.agents.knowledge_agent import knowledge_agent
+from app.schemas import IncomingMessage, BrainReply, BrainReplyMeta
+from app.agents.orchestrator import orchestrator
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("brain")
@@ -24,28 +23,18 @@ def health():
 
 
 @app.post("/message", response_model=BrainReply)
-def handle_message(msg: IncomingMessage):
-    session = get_session(msg.user_id)
-    session.message_count += 1
-    log.info("user=%s type=%s content=%r", msg.user_id, msg.type, msg.content)
+async def handle_message(msg: IncomingMessage) -> BrainReply:
+    log.info("user=%s type=%s content=%r message_id=%s", msg.user_id, msg.type, msg.content, msg.message_id)
 
-    if msg.type == "text":
-        content = (msg.content or "").strip()
-        if not content:
-            text = "Hello! How can I help you today? 🍕"
-        else:
-            # Prior turns (excluding this message) feed the query rewriter
-            result = knowledge_agent.ask(question=content, session=session)
-            text = result.get("answer", "")
-            log.info("knowledge route=%s sources=%s", result.get("route"), result.get("sources"))
-            session.add_history("user", content)
-            session.add_history("assistant", text)
-    elif msg.type == "audio":
-        text = "Voice notes are coming soon! For now, please type your order 🙂"
-    else:
-        text = "I can only read text messages for now."
+    if msg.type == "audio":
+        return BrainReply(
+            reply_text="Voice notes are coming soon! For now, please type your message or order 🙂",
+            meta=BrainReplyMeta(stage="browsing"),
+        )
 
-    return BrainReply(reply_text=text)
+    # All text & location messages are orchestrated through the Central Orchestrator
+    reply = await orchestrator.handle_message(msg)
+    return reply
 
 
 if __name__ == "__main__":
