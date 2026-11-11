@@ -13,8 +13,8 @@ An intelligent, multi-agent WhatsApp assistant for Pizza Hut (operating across m
 | **Phase 3** | Knowledge Base, Validator & Commercialized Hybrid RAG Pipeline | ✅ Completed |
 | **Phase 4** | Deterministic Tools & Agents (Branch, Order, Delivery, Promo, SQLite) | ✅ Completed |
 | **Phase 5** | Central Orchestrator Agent, State Machine & Redis Sessions | ✅ Completed |
-| **Phase 6** | Voice Notes (Audio Conversion & Faster-Whisper STT) | ⏳ Next |
-| **Phase 7** | Escalation Agent, Post-Order Tracking & Staff Notifications | 🔜 Planned |
+| **Phase 6** | Voice Notes (Audio Conversion, Faster-Whisper STT, Confirmation Rule & TTS) | ✅ Completed |
+| **Phase 7** | Escalation Agent, Post-Order Tracking & Staff Notifications | ⏳ Next |
 | **Phase 8** | Multi-Layer Evaluation Pipeline (L0–L5) | 🔜 Planned |
 | **Phase 9** | Production Hardening & Cloud Deployment | 🔜 Planned |
 
@@ -95,7 +95,7 @@ pizza-agent/
     │   │   ├── embeddings.py       # API & deterministic local embedding service with backend tracking
     │   │   ├── ingest.py           # Zero-downtime blue/green index builder, manifest swap & pruning
     │   │   └── retriever.py        # Dynamic manifest hot-swap, RBAC, hybrid BM25 + vector & reranker
-    │   ├── voice/                  # (Phase 6) STT and TTS handlers (stt.py, tts.py)
+    │   ├── voice/                  # (Phase 6) Audio conversion, STT & TTS (audio.py, stt.py, tts.py)
     │   └── db/                     # SQLite / PostgreSQL persistence
     │       ├── models.py           # Customer, Order, OrderItem, Handoff, MessageLog models
     │       └── order_repo.py       # SQLite repository with PH-YYYYMMDD-NNNN order numbering
@@ -117,8 +117,11 @@ pizza-agent/
     │       ├── offers/             # Current offers, expired offers, loyalty program
     │       └── policies/           # Ordering & delivery, payment & refunds, cancellation, food safety
     ├── eval/
-    │   └── datasets/
-    │       └── tools.yaml          # Deterministic tool-trajectory & state-machine evaluation cases
+    │   ├── datasets/
+    │   │   ├── tools.yaml          # Deterministic tool-trajectory & state-machine evaluation cases
+    │   │   └── voice.yaml          # 32-case multilingual voice evaluation dataset (EN, SI, TA, mixed)
+    │   └── runners/
+    │       └── voice_eval.py       # WER, slot accuracy & transcript confirmation rule evaluator
     ├── tests/
     │   ├── helpers.py              # Hermetic TempIndex & OfflineLLM test fixtures
     │   ├── test_api.py             # API schema, session state & /message route tests
@@ -128,7 +131,8 @@ pizza-agent/
     │   ├── test_rag_retrieval.py   # Hybrid search, leak probes, RBAC, manifest hot-swap & BM25 tests
     │   ├── test_rag_exam.py        # Automated Golden Set Exam (accuracy, memory, routing, leak guards)
     │   ├── test_phase4_orders.py   # Pricing, branch/zone, hours, promos, state-machine & DB order tests
-    │   └── test_phase5_orchestrator.py # Session dedupe, rate limits, stage filtering & prompt safety tests
+    │   ├── test_phase5_orchestrator.py # Session dedupe, rate limits, stage filtering & prompt safety tests
+    │   └── test_phase6_voice.py    # Audio limits, immediate deletion, STT, confirmation rule & TTS tests
     ├── start.bat                   # Windows CMD startup script
     ├── start.ps1                   # Windows PowerShell startup script
     ├── requirements.txt
@@ -200,6 +204,23 @@ Phase 5 introduces the central conversational orchestrator that glues together n
   - If a discrepancy or hallucinated price is detected, the post-processor corrects the text to the verified integer LKR amount or replaces it with the authentic receipt.
 - **Language Detection (`app/services/language.py`)**:
   - Native script detection for Sinhala (`\u0D80-\u0DFF`) and Tamil (`\u0B80-\u0BFF`), defaulting to English / Singlish with matched language output.
+
+---
+
+## Voice Notes: Audio Conversion, STT, Transcript Confirmation & TTS (Phase 6)
+
+- **Gateway Media Pipeline (`gateway/src/media.js` & `index.js`)**:
+  - Rejects voice notes exceeding 60 seconds (`MAX_AUDIO_SECONDS`) or 2 MB (`MAX_AUDIO_BYTES`) before downloading or calling the Brain.
+  - Downloads OGG/Opus voice notes via Baileys `downloadMediaMessage`, base64-encodes them, and sends optional `reply_audio_b64` responses back as WhatsApp push-to-talk (`ptt: true`) voice notes.
+- **Audio Normalization & Ephemeral Deletion (`app/voice/audio.py`)**:
+  - Converts incoming audio to **16 kHz mono 16-bit PCM WAV** via `ffmpeg` with subprocess timeouts and guarantees **immediate deletion of temporary audio files** inside a `finally` block (strictly enforcing `policies/privacy-policy.md`).
+- **Domain-Biased STT (`app/voice/stt.py`)**:
+  - Supports local `faster-whisper` (int8 CPU) with automatic fallback to OpenAI-compatible audio transcription (`/v1/audio/transcriptions`) and deterministic stubbing for unit tests.
+  - Injects a Sri Lankan & Pizza Hut domain vocabulary prompt (*Devilled Chicken, Chicken Tikka, Veggie Delight, Colombo 07, Nugegoda, Kandy, Delkanda, Katugastota, Bambalapitiya, LKR*) for higher entity recognition accuracy.
+- **Transcript Confirmation Rule (`app/agents/orchestrator.py`)**:
+  - Whenever a voice note has low STT confidence (`< 0.75`) or contains order-mutating entities (menu items, sizes, quantities, or delivery addresses), the orchestrator holds the transcript in `session.pending_voice_transcript` and asks: `'I heard: "<transcript>". Correct? Reply YES to confirm.'` before mutating the cart.
+- **Optional TTS (`app/voice/tts.py`)**:
+  - When `TTS_ENABLED=true`, synthesizes OGG/Opus voice replies only when the customer sent a voice note, automatically falling back to text-only for Sinhala/Tamil (`si`/`ta`) while always keeping text receipts alongside audio.
 
 ---
 
