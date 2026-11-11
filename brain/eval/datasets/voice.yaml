@@ -1,0 +1,343 @@
+# Phase 6 (Section 12.6): Voice Note Evaluation Dataset (32 cases across EN, SI, TA, mixed)
+# Tests WER, slot accuracy (items, sizes, quantities, areas, promos), and Transcript Confirmation Rule recall.
+
+- id: v001
+  lang: en
+  reference_transcript: "2 large Supreme pizzas please"
+  simulated_hypothesis: "2 large Supreme pizzas please"
+  stt_confidence: 0.92
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Supreme"]
+    sizes: ["large"]
+    quantities: ["2"]
+  expect_confirmation: true
+
+- id: v002
+  lang: en
+  reference_transcript: "1 medium Devilled Chicken and 1 Garlic Bread"
+  simulated_hypothesis: "1 medium Devilled Chicken and 1 Garlic Bread"
+  stt_confidence: 0.89
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Devilled Chicken", "Garlic Bread"]
+    sizes: ["medium"]
+    quantities: ["1"]
+  expect_confirmation: true
+
+- id: v003
+  lang: en
+  reference_transcript: "Deliver to 42 High Level Road Delkanda"
+  simulated_hypothesis: "Deliver to 42 High Level Road Delkanda"
+  stt_confidence: 0.88
+  expected_intent: set_delivery_address
+  expected_slots:
+    areas: ["Delkanda"]
+  expect_confirmation: true
+
+- id: v004
+  lang: en
+  reference_transcript: "Can you deliver to Katugastota in Kandy"
+  simulated_hypothesis: "Can you deliver to Katugastota in Kandy"
+  stt_confidence: 0.86
+  expected_intent: set_delivery_address
+  expected_slots:
+    areas: ["Katugastota", "Kandy"]
+  expect_confirmation: true
+
+- id: v005
+  lang: en
+  reference_transcript: "I want pickup from the Nugegoda branch"
+  simulated_hypothesis: "I want pickup from the Nugegoda branch"
+  stt_confidence: 0.91
+  expected_intent: set_pickup
+  expected_slots:
+    areas: ["Nugegoda"]
+  expect_confirmation: true
+
+- id: v006
+  lang: en
+  reference_transcript: "Add 1 personal Veggie Delight with cheese stuffed crust"
+  simulated_hypothesis: "Add 1 personal Veggie Delight with cheese stuffed crust"
+  stt_confidence: 0.85
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Veggie Delight"]
+    sizes: ["personal"]
+    quantities: ["1"]
+  expect_confirmation: true
+
+- id: v007
+  lang: en
+  reference_transcript: "Please apply promo code STUDENT15"
+  simulated_hypothesis: "Please apply promo code STUDENT15"
+  stt_confidence: 0.90
+  expected_intent: apply_promo
+  expected_slots:
+    promos: ["STUDENT15"]
+  expect_confirmation: true
+
+- id: v008
+  lang: en
+  reference_transcript: "Use promo code FRIDAY10 on my order"
+  simulated_hypothesis: "Use promo code FRIDAY10 on my order"
+  stt_confidence: 0.87
+  expected_intent: apply_promo
+  expected_slots:
+    promos: ["FRIDAY10"]
+  expect_confirmation: true
+
+- id: v009
+  lang: en
+  reference_transcript: "What time does the Colombo 07 branch close tonight"
+  simulated_hypothesis: "What time does the Colombo 07 branch close tonight"
+  stt_confidence: 0.94
+  expected_intent: faq_query
+  expected_slots:
+    areas: ["Colombo 07"]
+  expect_confirmation: false
+
+- id: v010
+  lang: en
+  reference_transcript: "What time do you open in Kandy"
+  simulated_hypothesis: "What time do you open in Kandy"
+  stt_confidence: 0.93
+  expected_intent: faq_query
+  expected_slots:
+    areas: ["Kandy"]
+  expect_confirmation: false
+
+- id: v011
+  lang: en
+  reference_transcript: "1 Family Combo with large Chicken Tikka and medium Margherita"
+  simulated_hypothesis: "1 Family Combo with large Chicken Tikka and medium Margherita"
+  stt_confidence: 0.84
+  expected_intent: add_combo
+  expected_slots:
+    items: ["Family Combo", "Chicken Tikka", "Margherita"]
+    sizes: ["large", "medium"]
+    quantities: ["1"]
+  expect_confirmation: true
+
+- id: v012
+  lang: en
+  reference_transcript: "2 Chocolate Lava Cake and 1 BBQ Chicken medium"
+  simulated_hypothesis: "2 Chocolate Lava Cake and 1 BBQ Chicken medium"
+  stt_confidence: 0.62
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Chocolate Lava Cake", "BBQ Chicken"]
+    sizes: ["medium"]
+    quantities: ["2", "1"]
+  expect_confirmation: true
+
+- id: v013
+  lang: en
+  reference_transcript: "Deliver to Bambalapitiya Station Road"
+  simulated_hypothesis: "Deliver to Bambalapitiya Station Road"
+  stt_confidence: 0.58
+  expected_intent: set_delivery_address
+  expected_slots:
+    areas: ["Bambalapitiya"]
+  expect_confirmation: true
+
+- id: v014
+  lang: en
+  reference_transcript: "3 Cheese Lover personal pizzas"
+  simulated_hypothesis: "3 Cheese Lover personal pizzas"
+  stt_confidence: 0.90
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Cheese Lover"]
+    sizes: ["personal"]
+    quantities: ["3"]
+  expect_confirmation: true
+
+- id: v015
+  lang: en
+  reference_transcript: "1 Chicken Alfredo Pasta and 1 Potato Wedges"
+  simulated_hypothesis: "1 Chicken Alfredo Pasta and 1 Potato Wedges"
+  stt_confidence: 0.88
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Chicken Alfredo Pasta", "Potato Wedges"]
+    quantities: ["1"]
+  expect_confirmation: true
+
+- id: v016
+  lang: en
+  reference_transcript: "Deliver to Peradeniya Road near university"
+  simulated_hypothesis: "Deliver to Peradeniya Road near university"
+  stt_confidence: 0.83
+  expected_intent: set_delivery_address
+  expected_slots:
+    areas: ["Peradeniya"]
+  expect_confirmation: true
+
+- id: v017
+  lang: mixed
+  reference_transcript: "Mata large Devilled Chicken pizza 2k one Delkanda walata"
+  simulated_hypothesis: "Mata large Devilled Chicken pizza 2k one Delkanda walata"
+  stt_confidence: 0.78
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Devilled Chicken"]
+    sizes: ["large"]
+    areas: ["Delkanda"]
+  expect_confirmation: true
+
+- id: v018
+  lang: mixed
+  reference_transcript: "Medium Veggie Delight 1k saha Garlic Bread 1k danna"
+  simulated_hypothesis: "Medium Veggie Delight 1k saha Garlic Bread 1k danna"
+  stt_confidence: 0.81
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Veggie Delight", "Garlic Bread"]
+    sizes: ["medium"]
+  expect_confirmation: true
+
+- id: v019
+  lang: mixed
+  reference_transcript: "Nugegoda branch eken pickup karanna puluwanda"
+  simulated_hypothesis: "Nugegoda branch eken pickup karanna puluwanda"
+  stt_confidence: 0.72
+  expected_intent: set_pickup
+  expected_slots:
+    areas: ["Nugegoda"]
+  expect_confirmation: true
+
+- id: v020
+  lang: mixed
+  reference_transcript: "Maharagama ta delivery thiyenawada"
+  simulated_hypothesis: "Maharagama ta delivery thiyenawada"
+  stt_confidence: 0.79
+  expected_intent: set_delivery_address
+  expected_slots:
+    areas: ["Maharagama"]
+  expect_confirmation: true
+
+- id: v021
+  lang: mixed
+  reference_transcript: "Chicken Tikka large pizza 1k Kollupitiya ta ewanna"
+  simulated_hypothesis: "Chicken Tikka large pizza 1k Kollupitiya ta ewanna"
+  stt_confidence: 0.68
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Chicken Tikka"]
+    sizes: ["large"]
+    areas: ["Kollupitiya"]
+  expect_confirmation: true
+
+- id: v022
+  lang: mixed
+  reference_transcript: "Supreme medium 2k Kohuwala junction ekata delivery"
+  simulated_hypothesis: "Supreme medium 2k Kohuwala junction ekata delivery"
+  stt_confidence: 0.80
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Supreme"]
+    sizes: ["medium"]
+    areas: ["Kohuwala"]
+  expect_confirmation: true
+
+- id: v023
+  lang: si
+  reference_transcript: "මට ලාජ් ඩෙවිල්ඩ් චිකන් පීසා 2ක් ඕනේ දෙල්කඳට"
+  simulated_hypothesis: "මට ලාජ් ඩෙවිල්ඩ් චිකන් පීසා 2ක් ඕනේ දෙල්කඳට"
+  stt_confidence: 0.69
+  expected_intent: add_to_cart
+  expected_slots:
+    quantities: ["2"]
+  expect_confirmation: true
+
+- id: v024
+  lang: si
+  reference_transcript: "නුගේගොඩ ශාඛාවෙන් පිකප් කරන්න පුළුවන්ද"
+  simulated_hypothesis: "නුගේගොඩ ශාඛාවෙන් පිකප් කරන්න පුළුවන්ද"
+  stt_confidence: 0.71
+  expected_intent: set_pickup
+  expected_slots: {}
+  expect_confirmation: true
+
+- id: v025
+  lang: si
+  reference_transcript: "මීඩියම් වෙජි ඩිලයිට් 1ක් සහ ගාලික් බ්‍රෙඩ් 1ක් දාන්න"
+  simulated_hypothesis: "මීඩියම් වෙජි ඩිලයිට් 1ක් සහ ගාලික් බ්‍රෙඩ් 1ක් දාන්න"
+  stt_confidence: 0.66
+  expected_intent: add_to_cart
+  expected_slots:
+    quantities: ["1"]
+  expect_confirmation: true
+
+- id: v026
+  lang: si
+  reference_transcript: "මහනුවර කටුගස්තොටට ඩිලිවරි කරනවාද"
+  simulated_hypothesis: "මහනුවර කටුගස්තොටට ඩිලිවරි කරනවාද"
+  stt_confidence: 0.64
+  expected_intent: set_delivery_address
+  expected_slots: {}
+  expect_confirmation: true
+
+- id: v027
+  lang: si
+  reference_transcript: "චීස් ලවර් පීසා 1ක් බම්බලපිටියට එවන්න"
+  simulated_hypothesis: "චීස් ලවර් පීසා 1ක් බම්බලපිටියට එවන්න"
+  stt_confidence: 0.70
+  expected_intent: add_to_cart
+  expected_slots:
+    quantities: ["1"]
+  expect_confirmation: true
+
+- id: v028
+  lang: ta
+  reference_transcript: "எனக்கு 2 large Supreme பீட்சா வேண்டும்"
+  simulated_hypothesis: "எனக்கு 2 large Supreme பீட்சா வேண்டும்"
+  stt_confidence: 0.72
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Supreme"]
+    sizes: ["large"]
+    quantities: ["2"]
+  expect_confirmation: true
+
+- id: v029
+  lang: ta
+  reference_transcript: "வெள்ளவத்தைக்கு டெலிவரி செய்ய முடியுமா"
+  simulated_hypothesis: "வெள்ளவத்தைக்கு டெலிவரி செய்ய முடியுமா"
+  stt_confidence: 0.65
+  expected_intent: set_delivery_address
+  expected_slots: {}
+  expect_confirmation: true
+
+- id: v030
+  lang: ta
+  reference_transcript: "1 medium Chicken Tikka மற்றும் 1 Garlic Bread"
+  simulated_hypothesis: "1 medium Chicken Tikka மற்றும் 1 Garlic Bread"
+  stt_confidence: 0.73
+  expected_intent: add_to_cart
+  expected_slots:
+    items: ["Chicken Tikka", "Garlic Bread"]
+    sizes: ["medium"]
+    quantities: ["1"]
+  expect_confirmation: true
+
+- id: v031
+  lang: ta
+  reference_transcript: "கண்டி Katugastota பகுதிக்கு டெலிவரி"
+  simulated_hypothesis: "கண்டி Katugastota பகுதிக்கு டெலிவரி"
+  stt_confidence: 0.68
+  expected_intent: set_delivery_address
+  expected_slots:
+    areas: ["Katugastota"]
+  expect_confirmation: true
+
+- id: v032
+  lang: ta
+  reference_transcript: "நுகேகொடை கிளையில் pickup செய்யலாமா"
+  simulated_hypothesis: "நுகேகொடை கிளையில் pickup செய்யலாமா"
+  stt_confidence: 0.70
+  expected_intent: set_pickup
+  expected_slots: {}
+  expect_confirmation: true
+
