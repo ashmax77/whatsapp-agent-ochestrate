@@ -97,11 +97,21 @@ class _CrossEncoderReranker:
 
     def __init__(self, model_name: str):
         if _CrossEncoderReranker._instance is None or _CrossEncoderReranker._loaded_model_name != model_name:
+            import os
             from sentence_transformers import CrossEncoder  # optional dependency
+            prev_offline = os.environ.get("HF_HUB_OFFLINE")
             try:
+                os.environ["HF_HUB_OFFLINE"] = "1"
                 _CrossEncoderReranker._instance = CrossEncoder(model_name, local_files_only=True)
             except Exception:
+                if prev_offline is None:
+                    os.environ.pop("HF_HUB_OFFLINE", None)
                 _CrossEncoderReranker._instance = CrossEncoder(model_name)
+            finally:
+                if prev_offline is None:
+                    os.environ.pop("HF_HUB_OFFLINE", None)
+                else:
+                    os.environ["HF_HUB_OFFLINE"] = prev_offline
             _CrossEncoderReranker._loaded_model_name = model_name
         self.model = _CrossEncoderReranker._instance
 
@@ -116,13 +126,19 @@ class KnowledgeRetriever:
         self._state = _IndexState()
         self._query_api_failed = False
         self._cross_encoder = None
-        if settings.RERANKER_MODEL:
-            try:
-                self._cross_encoder = _CrossEncoderReranker(settings.RERANKER_MODEL)
-                log.info("Cross-encoder reranker enabled: %s", settings.RERANKER_MODEL)
-            except Exception as e:
-                log.warning("Cross-encoder unavailable (%s). Using built-in fusion reranker.", e)
+        self._cross_encoder_checked = False
         self.load_index()
+
+    def _get_cross_encoder(self) -> Optional[_CrossEncoderReranker]:
+        if not self._cross_encoder_checked:
+            self._cross_encoder_checked = True
+            if settings.RERANKER_MODEL:
+                try:
+                    self._cross_encoder = _CrossEncoderReranker(settings.RERANKER_MODEL)
+                    log.info("Cross-encoder reranker enabled: %s", settings.RERANKER_MODEL)
+                except Exception as e:
+                    log.warning("Cross-encoder unavailable (%s). Using built-in fusion reranker.", e)
+        return self._cross_encoder
 
     # ------------------------------------------------------------------
     # Index loading / hot swap
@@ -292,9 +308,10 @@ class KnowledgeRetriever:
 
         order = list(found.keys())
         has_vectors = any(s["cos"] != 0.0 for s in found.values())
-        if self._cross_encoder is not None:
+        ce = self._get_cross_encoder()
+        if ce is not None:
             texts = [state.documents[i]["text"] for i in order]
-            scores = self._cross_encoder.scores(query, texts)
+            scores = ce.scores(query, texts)
             cutoff = settings.RERANKER_MIN_SCORE if min_score is None else min_score
         else:
             scores = [self._fusion_score(found[i]["cos"], found[i]["bm25"], has_vectors) for i in order]

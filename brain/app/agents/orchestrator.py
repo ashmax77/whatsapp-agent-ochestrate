@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -9,15 +10,32 @@ from app.state.session import Session, get_session_store
 from app.services.language import detect_language
 from app.services.post_processor import verify_and_post_process_reply
 from app.services.branch_repo import branch_repo
+from app.services.menu_repo import menu_repo
 from app.services import pricing
 from app.tools.registry import registry
 from app.llm.client import llm_client
 from app.agents.knowledge_agent import knowledge_agent
+from app.voice.tts import tts_service
 
 log = logging.getLogger("brain.orchestrator")
 
 PROMPT_VERSION = "orchestrator_v1"
 PROMPT_FILE = settings.PROMPTS_DIR / f"{PROMPT_VERSION}.md"
+
+_VOICE_CONFIRM_YES = {
+    "yes", "y", "correct", "ok", "okay", "sure", "confirm", "right", "ow", "hari", "ඔව්", "හරි", "ஆம்", "சரி",
+}
+_VOICE_CONFIRM_NO = {
+    "no", "n", "wrong", "cancel", "nope", "na", "epaa", "නැහැ", "එපා", "இல்லை", "வேண்டாம்",
+}
+_ORDER_SIGNAL_RE = re.compile(
+    r"\b(\d+|one|two|three|four|five|personal|medium|large|regular|order|add|want|deliver|delivery|pickup|address|street|road|lane|promo|code|student15|friday10|colombo|nugegoda|kandy|delkanda|maharagama|bambalapitiya|kollupitiya|wellawatte|borella|kohuwala|nawala|kotte|peradeniya|katugastota)\b",
+    re.IGNORECASE,
+)
+_PURE_QUESTION_PREFIX_RE = re.compile(
+    r"^\s*(what\s+time|when\s+do|where\s+is|are\s+you\s+open|do\s+you\s+have\s+halal|what\s+is\s+your\s+refund)",
+    re.IGNORECASE,
+)
 
 
 def load_system_prompt() -> str:
@@ -72,6 +90,49 @@ class Orchestrator:
         ]
         return "\n".join(lines)
 
+    def _should_confirm_voice_transcript(
+        self, raw_text: str, stt_confidence: Optional[float]
+    ) -> bool:
+        """
+        Phase 6 Transcript Confirmation Rule:
+        If STT confidence is below threshold, OR the transcript contains item names,
+        quantities, or addresses, repeat what was understood ("I heard: ... Correct?")
+        before mutating the cart or fulfilment state.
+        """
+        if stt_confidence is not None and stt_confidence < settings.STT_CONFIDENCE_THRESHOLD:
+            return True
+
+        lower = raw_text.lower()
+        if _PURE_QUESTION_PREFIX_RE.search(lower):
+            return False
+
+        # Check menu item names
+        for item in menu_repo.list_items():
+            if item.name.lower() in lower:
+                return True
+        for combo in menu_repo.get_all_combos():
+            if combo.name.lower() in lower:
+                return True
+
+        # Check quantities, sizes, order verbs, or area/address tokens
+        if _ORDER_SIGNAL_RE.search(lower):
+            return True
+
+        return False
+
+    def _attach_tts_if_needed(
+        self, reply: BrainReply, session: Session, source: str
+    ) -> BrainReply:
+        if source == "voice" and reply.reply_text:
+            tts_res = tts_service.synthesize_for_reply(
+                reply.reply_text,
+                language=session.language or "en",
+                source="voice",
+            )
+            if tts_res:
+                reply.reply_audio_b64, reply.reply_audio_mime = tts_res
+        return reply
+
     async def handle_message(self, msg: IncomingMessage) -> BrainReply:
         trace_id = str(uuid.uuid4())[:8]
         store = get_session_store()
@@ -117,6 +178,69 @@ class Orchestrator:
 
             # Detect language
             session.language = detect_language(raw_text)
+
+            # 5b. Phase 6: Voice Transcript Confirmation Rule handling
+            effective_source = msg.source
+            if session.pending_voice_transcript:
+                normalized_reply = raw_text.strip().lower().rstrip(".!?,")
+                if normalized_reply in _VOICE_CONFIRM_YES:
+                    # Customer confirmed the voice transcript -> execute it now!
+                    confirmed_transcript = session.pending_voice_transcript
+                    session.pending_voice_transcript = None
+                    session.add_history("user", raw_text)
+                    raw_text = confirmed_transcript
+                    effective_source = "text"  # already confirmed; proceed to tool loop
+                elif normalized_reply in _VOICE_CONFIRM_NO:
+                    session.pending_voice_transcript = None
+                    cancel_text = "Got it, I cancelled that voice note. Please try sending it again or type your order 🙂"
+                    session.add_history("user", raw_text)
+                    session.add_history("assistant", cancel_text)
+                    await store.save(session)
+                    reply = BrainReply(
+                        reply_text=cancel_text,
+                        meta=BrainReplyMeta(
+                            stage=session.stage,
+                            branch_id=session.branch_id,
+                            trace_id=trace_id,
+                        ),
+                    )
+                    self._attach_tts_if_needed(reply, session, msg.source)
+                    if msg.message_id:
+                        await store.record_message_reply(user_id, msg.message_id, reply)
+                    return reply
+                else:
+                    # Customer sent a correction or new request instead
+                    session.pending_voice_transcript = None
+
+            if effective_source == "voice" and self._should_confirm_voice_transcript(
+                raw_text, msg.stt_confidence
+            ):
+                session.pending_voice_transcript = raw_text
+                session.message_count += 1
+                confirm_prompt = f'I heard: "{raw_text}". Correct? Reply YES to confirm.'
+                session.add_history("user", f"[Voice note] {raw_text}")
+                session.add_history("assistant", confirm_prompt)
+                await store.save(session)
+
+                reply = BrainReply(
+                    reply_text=confirm_prompt,
+                    meta=BrainReplyMeta(
+                        stage=session.stage,
+                        branch_id=session.branch_id,
+                        trace_id=trace_id,
+                    ),
+                )
+                self._attach_tts_if_needed(reply, session, msg.source)
+                if msg.message_id:
+                    await store.record_message_reply(user_id, msg.message_id, reply)
+                log.info(
+                    "[%s] user=%s voice confirmation triggered (confidence=%s): %r",
+                    trace_id,
+                    user_id,
+                    msg.stt_confidence,
+                    raw_text,
+                )
+                return reply
 
             # 6. Build prompt context
             state_block = self._build_state_block(session)
@@ -213,6 +337,7 @@ class Orchestrator:
                     trace_id=trace_id,
                 ),
             )
+            self._attach_tts_if_needed(reply, session, msg.source)
 
             # 10. Record dedupe
             if msg.message_id:
