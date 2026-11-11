@@ -42,6 +42,19 @@ class Orchestrator:
             status_word = "OPEN" if is_open else "CLOSED"
             open_statuses.append(f"{b.id}:{status_word}")
 
+        # Compute next step guidance so the model never asks repetitive questions
+        if session.cart:
+            if session.fulfilment and (session.address or session.branch_id):
+                hint = "Cart & fulfilment are complete. If customer says 'no', 'n', 'done', 'that's all', or 'checkout', call order.show_summary immediately. DO NOT ask for delivery/pickup again."
+            elif not session.fulfilment:
+                hint = "Cart has items. Ask customer to choose 'delivery' or 'pickup'."
+            elif session.fulfilment == "delivery" and not session.address:
+                hint = "Delivery mode selected. Ask customer for street address or location pin."
+            else:
+                hint = "Ready to proceed."
+        else:
+            hint = "Cart is empty. If customer wants to order, ask what items they would like to add."
+
         lines = [
             "=== CURRENT SESSION STATE ===",
             f"Stage: {session.stage}",
@@ -54,6 +67,7 @@ class Orchestrator:
             f"Summary Hash: {session.summary_hash or 'none'}",
             f"Branch Hours: {', '.join(open_statuses)}",
             f"Language: {session.language or 'en'}",
+            f"Guidance: {hint}",
             "=============================",
         ]
         return "\n".join(lines)
