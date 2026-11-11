@@ -287,6 +287,16 @@ class KnowledgeRetriever:
             scores = [self._fusion_score(found[i]["cos"], found[i]["bm25"], has_vectors) for i in order]
             cutoff = settings.MIN_RELEVANCE_SCORE if min_score is None else min_score
 
+        # Entity consistency check: if query explicitly mentions specific menu item(s),
+        # penalize chunks about conflicting different menu items that only matched via general keywords (e.g. "spicy")
+        try:
+            from app.services.menu_repo import menu_repo
+            menu_items = menu_repo.list_items() + menu_repo.get_all_combos()
+            q_lower = query.lower()
+            named_query_items = [it for it in menu_items if len(it.name) > 3 and it.name.lower() in q_lower]
+        except Exception:
+            named_query_items = []
+
         hits: List[Hit] = []
         for doc_i, score in zip(order, scores):
             doc = state.documents[doc_i]
@@ -294,6 +304,19 @@ class KnowledgeRetriever:
             # Small boost for the customer's own outlet
             if branch_id and meta.get("branch_id") == branch_id:
                 score += 0.05
+
+            if named_query_items:
+                hit_item_id = meta.get("item_id")
+                hit_title = (meta.get("title") or "").lower()
+                is_conflicting_item = False
+                for other in menu_items:
+                    if other not in named_query_items:
+                        if hit_item_id == other.id or (len(other.name) > 4 and other.name.lower() in hit_title):
+                            is_conflicting_item = True
+                            break
+                if is_conflicting_item:
+                    score *= 0.4  # Penalize keyword-only overlap from conflicting items
+
             cos = found[doc_i]["cos"]
             hits.append(Hit(
                 id=doc["id"], text=doc["text"], meta=meta,

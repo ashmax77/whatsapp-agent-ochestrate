@@ -15,9 +15,11 @@ Journey of one question:
 import re
 import logging
 from typing import Dict, Any, List, Optional
+import numpy as np
 from app.config import settings
 from app.state.session import Session
 from app.agents.base import BaseAgent
+from app.rag.embeddings import embedding_service
 from app.rag.retriever import retriever as default_retriever, Hit, KnowledgeRetriever
 from app.services.menu_repo import menu_repo, MenuItem
 from app.llm.client import llm_client as default_llm_client
@@ -39,7 +41,12 @@ REWRITE_PROMPT = (
 )
 
 FOLLOW_UP_PATTERN = re.compile(
-    r"\b(it|its|it's|that|this|those|these|they|them|their|one|same|also|too|what about|how about)\b",
+    r"\b(it|its|it's|that|this|those|these|they|them|their|one|ones|same|also|too|what about|how about|"
+    r"ඒක|මේක|ඕක|ඒවා|මේවා|ඒකෙ|මේකෙ|அது|இது|அவை|இவை)\b",
+    re.IGNORECASE,
+)
+ATTRIBUTE_PATTERN = re.compile(
+    r"\b(spic|hot|heat|size|crust|topping|ingredient|allerg|price|cost|halal|vegan|vegetarian|gluten|portion|how much)\b",
     re.IGNORECASE,
 )
 CITATION_PATTERN = re.compile(r"\s?\[(\d+)\]")
@@ -71,7 +78,7 @@ class KnowledgeAgent(BaseAgent):
         self.llm = llm_client or default_llm_client
 
     # ------------------------------------------------------------------
-    # Step 2: memory (query rewriting)
+    # Step 2: memory (embedding-powered query rewriting & referent resolution)
     # ------------------------------------------------------------------
     @staticmethod
     def _recent_history(history: Optional[List[Dict[str, str]]]) -> List[Dict[str, str]]:
@@ -80,12 +87,126 @@ class KnowledgeAgent(BaseAgent):
         turns = [h for h in history if h.get("role") in ("user", "assistant") and h.get("content")]
         return turns[-settings.MAX_HISTORY_MESSAGES:]
 
-    def rewrite_query(self, question: str, history: Optional[List[Dict[str, str]]] = None) -> str:
-        """Turn a follow-up into a standalone query. A first message needs no rewrite."""
+    def _resolve_referents_with_embeddings(
+        self,
+        question: str,
+        turns: List[Dict[str, str]],
+        session: Optional[Session] = None,
+    ) -> Optional[str]:
+        """
+        Uses semantic embeddings and past conversational context to resolve referents
+        like 'it', 'that', 'this', or bare attribute questions ('is it spicy?', 'what sizes?')
+        to the exact menu item(s) being discussed.
+        """
+        menu_items = menu_repo.list_items() + menu_repo.get_all_combos()
+        q_lower = question.lower()
+
+        # If question already names a specific menu item, no pronoun resolution needed
+        for it in menu_items:
+            if len(it.name) > 3 and it.name.lower() in q_lower:
+                return question
+
+        is_referent_cue = bool(
+            FOLLOW_UP_PATTERN.search(question)
+            or ATTRIBUTE_PATTERN.search(question)
+            or len(question.split()) <= 8
+        )
+        if not is_referent_cue or not turns:
+            return None
+
+        recent_texts = [h["content"] for h in reversed(turns[-4:]) if h.get("content")]
+        if session and getattr(session, "cart", None):
+            cart_names = []
+            for line in session.cart:
+                cart_item = menu_repo.get_item(line.item_id) or menu_repo.get_combo(line.item_id)
+                if cart_item:
+                    cart_names.append(cart_item.name)
+            if cart_names:
+                recent_texts.append(f"Cart has {', '.join(cart_names)}")
+
+        context_text = " ".join(recent_texts).strip()
+        if not context_text:
+            return None
+
+        try:
+            ctx_vec = np.array(embedding_service.embed_text(context_text), dtype=np.float32)
+            ctx_norm = float(np.linalg.norm(ctx_vec))
+            if ctx_norm > 0:
+                ctx_vec = ctx_vec / ctx_norm
+            else:
+                return None
+        except Exception as e:
+            log.warning("Embedding context failed (%s). Skipping embedding referent resolution.", e)
+            return None
+
+        candidates = []
+        context_lower = context_text.lower()
+        for item in menu_items:
+            cat = getattr(item, "category", "")
+            desc_txt = getattr(item, "description", "")
+            desc = f"{item.name} {cat} {desc_txt}"
+            try:
+                ivec = np.array(embedding_service.embed_text(desc), dtype=np.float32)
+                inorm = float(np.linalg.norm(ivec))
+                sim = float(np.dot(ctx_vec, ivec) / (ctx_norm * inorm)) if inorm > 0 else 0.0
+            except Exception:
+                sim = 0.0
+
+            exact_mention = item.name.lower() in context_lower
+            # Strong boost for items explicitly mentioned in the recent dialogue turns
+            score = sim + (0.35 if exact_mention else 0.0)
+            candidates.append((item, score, exact_mention, sim))
+
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        mentioned_top = [c[0] for c in candidates if c[2]]
+
+        if mentioned_top:
+            target_items = mentioned_top[:3]
+        elif candidates and candidates[0][1] >= 0.20:
+            target_items = [candidates[0][0]]
+        else:
+            target_items = []
+
+        if not target_items:
+            return None
+
+        names = [i.name for i in target_items]
+        if len(names) == 1:
+            target = target_items[0]
+            name_str = f"{target.name} pizza" if getattr(target, "category", "") == "pizza" else target.name
+            if FOLLOW_UP_PATTERN.search(question):
+                rewritten = FOLLOW_UP_PATTERN.sub(name_str, question, count=1)
+            else:
+                rewritten = f"{question.rstrip('?')} for {name_str}?"
+        else:
+            # Multiple items from recent context (e.g. list of vegetarian pizzas)
+            name_str = f"{', '.join(names[:-1])} and {names[-1]} pizzas"
+            if FOLLOW_UP_PATTERN.search(question):
+                q_mod = re.sub(r"^(is\s+)(it|that|this)", r"Are \2", question, flags=re.IGNORECASE)
+                rewritten = FOLLOW_UP_PATTERN.sub(name_str, q_mod, count=1)
+            else:
+                rewritten = f"{question.rstrip('?')} for {name_str}?"
+
+        log.info("Resolved referent 'it' via embedding similarity: '%s' -> '%s'", question, rewritten)
+        return rewritten
+
+    def rewrite_query(
+        self,
+        question: str,
+        history: Optional[List[Dict[str, str]]] = None,
+        session: Optional[Session] = None,
+    ) -> str:
+        """Turn a follow-up into a standalone query using semantic embeddings and chat history."""
         turns = self._recent_history(history)
         if not turns:
             return question
 
+        # 1. Primary: Semantic embed-based referent resolution matching past conversational context
+        resolved_by_embed = self._resolve_referents_with_embeddings(question, turns, session=session)
+        if resolved_by_embed and resolved_by_embed != question:
+            return resolved_by_embed
+
+        # 2. Secondary: If embed resolution was neutral, attempt LLM rewrite
         try:
             resp = self.llm.complete(
                 system=REWRITE_PROMPT,
@@ -101,7 +222,7 @@ class KnowledgeAgent(BaseAgent):
         except Exception as e:
             log.info("Query rewrite via LLM unavailable (%s). Using heuristic rewrite.", e)
 
-        # Offline heuristic: a short message with a pronoun inherits the last user topic
+        # 3. Fallback: inherit last user topic
         if FOLLOW_UP_PATTERN.search(question) and len(question.split()) <= 12:
             last_user = next((h["content"] for h in reversed(turns) if h["role"] == "user"), "")
             if last_user:
@@ -261,8 +382,8 @@ class KnowledgeAgent(BaseAgent):
         if history is None and session is not None:
             history = getattr(session, "history", None)
 
-        # Step 2: memory
-        search_query = self.rewrite_query(question, history)
+        # Step 2: memory (embedding-powered query rewriting)
+        search_query = self.rewrite_query(question, history, session=session)
 
         # Step 3: Python answers counting / listing / price-threshold questions
         calculated = self.deterministic_answer(search_query)
