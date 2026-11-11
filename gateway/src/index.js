@@ -8,6 +8,7 @@ import pino from 'pino'
 import { config } from './config.js'
 import { askBrain } from './brainClient.js'
 import { downloadAudio, sendVoiceNote } from './media.js'
+import { startInternalServer, setActiveSocket } from './internalServer.js'
 
 const logger = pino({ level: 'info' })
 
@@ -66,6 +67,9 @@ async function start() {
     auth: state,
     logger: pino({ level: 'silent' }),
   })
+
+  startInternalServer(sock, logger)
+  setActiveSocket(sock)
 
   sock.ev.on('creds.update', saveCreds)
 

@@ -7,6 +7,8 @@ export const config = {
   maxAudioSeconds: Number(process.env.MAX_AUDIO_SECONDS ?? 60),
   maxAudioBytes: Number(process.env.MAX_AUDIO_BYTES ?? 2 * 1024 * 1024),
   maxReplyChars: Number(process.env.MAX_REPLY_CHARS ?? 1000),
+  internalPort: Number(process.env.INTERNAL_PORT ?? 3001),
+  internalSecret: process.env.INTERNAL_SECRET ?? 'pizza-internal-dev-secret',
   callRejectMessage:
     "Hi! 🍕 I can't take calls, but you can text me or send a voice note and I'll take your order.",
 }
