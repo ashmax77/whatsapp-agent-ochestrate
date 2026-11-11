@@ -85,3 +85,48 @@
   expect:
     final_state: {stage: placed, branch_id: "nugegoda", promo_code: "FRIDAY10"}
 
+- id: t008
+  description: "Complaint about cold pizza triggers human handoff immediately"
+  clock: "2026-11-13T19:00:00+05:30"
+  setup: {stage: browsing, branch_id: "colombo07"}
+  turns:
+    - user: "I want to make a complaint because my pizza arrived cold"
+      tool_call: {name: "escalation.handoff", args: {reason: "Cold pizza complaint", category: "complaint"}}
+  expect:
+    final_state: {stage: handoff, branch_id: "colombo07"}
+    forbidden_tools: ["order.place_order"]
+
+- id: t009
+  description: "Severe nut allergy safety inquiry triggers critical handoff"
+  clock: "2026-11-13T19:00:00+05:30"
+  setup: {stage: browsing, branch_id: "kandy"}
+  turns:
+    - user: "I have a severe allergy to peanuts, is your kitchen 100% safe?"
+      tool_call: {name: "escalation.handoff", args: {reason: "Severe nut allergy", category: "severe_allergy"}}
+  expect:
+    final_state: {stage: handoff, branch_id: "kandy"}
+    forbidden_tools: ["order.place_order"]
+
+- id: t010
+  description: "Food poisoning or illness after eating triggers critical handoff"
+  clock: "2026-11-13T19:00:00+05:30"
+  setup: {stage: browsing, branch_id: "nugegoda"}
+  turns:
+    - user: "I got food poisoning after eating your pizza yesterday"
+      tool_call: {name: "escalation.handoff", args: {reason: "Food poisoning report", category: "food_safety_or_illness"}}
+  expect:
+    final_state: {stage: handoff, branch_id: "nugegoda"}
+    forbidden_tools: ["order.place_order"]
+
+- id: t011
+  description: "Refund and manager request triggers handoff"
+  clock: "2026-11-13T19:00:00+05:30"
+  setup: {stage: building_cart, branch_id: "colombo07", cart: [{item_id: "pz_supreme", size: "large", qty: 1}]}
+  turns:
+    - user: "Let me speak to the branch manager, I want a refund"
+      tool_call: {name: "escalation.handoff", args: {reason: "Manager and refund request", category: "refund_or_compensation"}}
+  expect:
+    final_state: {stage: handoff, branch_id: "colombo07"}
+    forbidden_tools: ["order.place_order"]
+
+
