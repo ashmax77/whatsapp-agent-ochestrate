@@ -22,6 +22,8 @@ An intelligent, multi-agent WhatsApp assistant for Pizza Hut (operating across m
 
 ## Architecture Overview
 
+The system is built on an asynchronous microservices architecture (Node.js Gateway + FastAPI with Uvicorn), specifically designed to handle concurrent WhatsApp conversations in parallel:
+
 The system is decoupled into two primary services:
 
 - **`gateway/` (Node.js + Baileys)**: Strictly handles WhatsApp I/O (WebSocket protocol, QR code pairing, connection management, voice call auto-rejection, message normalization, and media downloads). Contains zero business or AI logic.
@@ -61,6 +63,7 @@ pizza-agent/
     │   │   ├── promo_repo.py       # Deterministic promo validator (days, dates, branches, min spend)
     │   │   ├── pricing.py          # Pure integer-LKR pricing engine & WhatsApp receipt formatter
     │   │   ├── language.py         # Script-based language detector (Sinhala, Tamil, English/Singlish)
+│     │   │   ├── action_guard.py     # Deterministic action-claim & order-number verification guard
     │   │   ├── post_processor.py   # Reply price verification & hallucination defense
     │   │   └── notifier.py         # (Phase 7) Per-branch & Area Manager WhatsApp notification service
     │   ├── state/
@@ -206,6 +209,12 @@ Phase 5 introduces the central conversational orchestrator that glues together n
   - If a discrepancy or hallucinated price is detected, the post-processor corrects the text to the verified integer LKR amount or replaces it with the authentic receipt.
 - **Language Detection (`app/services/language.py`)**:
   - Native script detection for Sinhala (`\u0D80-\u0DFF`) and Tamil (`\u0B80-\u0BFF`), defaulting to English / Singlish with matched language output.
+- **Action-Claim Guard & Forced Tool Calling (`app/services/action_guard.py`)**:
+  - **Deterministic Claim Audit**: Verifies affirmative model claims (*"Added garlic bread"*, *"Updated to 1 Margherita"*, *"Applied promo STUDENT15"*, *"Order placed"*) against actual successful tool calls in the current turn.
+  - **Fabricated Order Number Blocker**: Catches hallucinated order numbers (`PH-YYYYMMDD-NNNN`, `Order No: X`) and blocks confirmation unless backed by a genuine `order.place_order` SQLite record.
+  - **Forced Tool-Choice Self-Correction Loop**: When an unbacked action is asserted, the orchestrator triggers a corrective turn with `tool_choice="required"`, forcing the model to emit the necessary tool call rather than silently failing.
+  - **Indexed Cart State**: Injects zero-indexed cart lines (`[0] 2 x Margherita (large)...`) into the state block so `cart.update_item` and `cart.remove_item` precisely target the intended line.
+  - **Honest Safe Fallback**: If the model fails to emit a valid tool call after correction retries, an honest fallback is returned to the user, ensuring the conversation and cart state never desynchronize.
 
 ---
 
