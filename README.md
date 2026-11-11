@@ -14,8 +14,8 @@ An intelligent, multi-agent WhatsApp assistant for Pizza Hut (operating across m
 | **Phase 4** | Deterministic Tools & Agents (Branch, Order, Delivery, Promo, SQLite) | ✅ Completed |
 | **Phase 5** | Central Orchestrator Agent, State Machine & Redis Sessions | ✅ Completed |
 | **Phase 6** | Voice Notes (Audio Conversion, Faster-Whisper STT, Confirmation Rule & TTS) | ✅ Completed |
-| **Phase 7** | Escalation Agent, Post-Order Tracking & Staff Notifications | ⏳ Next |
-| **Phase 8** | Multi-Layer Evaluation Pipeline (L0–L5) | 🔜 Planned |
+| **Phase 7** | Escalation Agent, Post-Order Tracking & Staff Notifications | ✅ Completed |
+| **Phase 8** | Multi-Layer Evaluation Pipeline (L0–L5) | ⏳ Next |
 | **Phase 9** | Production Hardening & Cloud Deployment | 🔜 Planned |
 
 ---
@@ -61,7 +61,8 @@ pizza-agent/
     │   │   ├── promo_repo.py       # Deterministic promo validator (days, dates, branches, min spend)
     │   │   ├── pricing.py          # Pure integer-LKR pricing engine & WhatsApp receipt formatter
     │   │   ├── language.py         # Script-based language detector (Sinhala, Tamil, English/Singlish)
-    │   │   └── post_processor.py   # Reply price verification & hallucination defense
+    │   │   ├── post_processor.py   # Reply price verification & hallucination defense
+    │   │   └── notifier.py         # (Phase 7) Per-branch & Area Manager WhatsApp notification service
     │   ├── state/
     │   │   ├── session.py          # Per-customer Session, CartLine, summary_hash & singleton store factory
     │   │   ├── session_store.py    # Abstract async SessionStore base class
@@ -132,7 +133,8 @@ pizza-agent/
     │   ├── test_rag_exam.py        # Automated Golden Set Exam (accuracy, memory, routing, leak guards)
     │   ├── test_phase4_orders.py   # Pricing, branch/zone, hours, promos, state-machine & DB order tests
     │   ├── test_phase5_orchestrator.py # Session dedupe, rate limits, stage filtering & prompt safety tests
-    │   └── test_phase6_voice.py    # Audio limits, immediate deletion, STT, confirmation rule & TTS tests
+    │   ├── test_phase6_voice.py    # Audio limits, immediate deletion, STT, confirmation rule & TTS tests
+    │   └── test_phase7_escalation_and_staff.py # Escalation rules sync, handoff silence, notifier & branch staff commands
     ├── start.bat                   # Windows CMD startup script
     ├── start.ps1                   # Windows PowerShell startup script
     ├── requirements.txt
@@ -221,6 +223,24 @@ Phase 5 introduces the central conversational orchestrator that glues together n
   - Whenever a voice note has low STT confidence (`< 0.75`) or contains order-mutating entities (menu items, sizes, quantities, or delivery addresses), the orchestrator holds the transcript in `session.pending_voice_transcript` and asks: `'I heard: "<transcript>". Correct? Reply YES to confirm.'` before mutating the cart.
 - **Optional TTS (`app/voice/tts.py`)**:
   - When `TTS_ENABLED=true`, synthesizes OGG/Opus voice replies only when the customer sent a voice note, automatically falling back to text-only for Sinhala/Tamil (`si`/`ta`) while always keeping text receipts alongside audio.
+
+---
+
+## Escalation Agent, Post-Order Tracking & Per-Branch Staff Flow (Phase 7)
+
+- **Escalation Agent (`app/agents/escalation_agent.py`)**:
+  - Mirrors every trigger category in `internal/hr/bot-escalation-rules.md` (`complaint`, `refund_or_compensation`, `severe_allergy`, `food_safety_or_illness`, `abusive_or_frustrated`, `manager_or_human_request`, and `repeated_failures` when `consecutive_failures >= 3`), verified by an automated markdown-sync unit test.
+  - Transitions the session into `stage="handoff"` for 2 hours, persists a `Handoff` record in SQLite (`app/db/order_repo.py`), and returns an **opening-hours-aware** response (promising a reply within 30 minutes during opening hours, or by 11:00 the next morning when outlets are closed).
+  - While in `stage="handoff"`, the bot stays silent to the customer (`reply_text=None`) and forwards customer follow-up messages directly to staff.
+- **Per-Branch & Area Manager Notifier (`app/services/notifier.py` & `gateway/src/internalServer.js`)**:
+  - Pushes outbound WhatsApp notifications to `gateway/src/internalServer.js` (`POST /send` protected by `X-Internal-Secret`) with automatic retries; failures are logged and never block customer replies or order placement.
+  - Routes handoff alerts (with customer ID, reason, last 5 messages, and cart summary) to `STAFF_NOTIFY_JIDS[branch_id]` if known, or `STAFF_NOTIFY_JIDS["area"]`. Critical cases (`severe_allergy`, `food_safety_or_illness`) notify **both** the branch manager and the Area Manager.
+- **Post-Order Agent & Branch-Scoped Staff Commands (`app/agents/post_order_agent.py`)**:
+  - Generates a one-line order summary and notifies the order's branch staff **exactly once** upon `order.place_order`.
+  - Authenticates staff senders against `STAFF_NOTIFY_JIDS` and enforces strict branch scoping (e.g., a Kandy staff number cannot modify a Nugegoda order, whereas the `area` manager number can act on all branches):
+    - `/orders`: Lists recent orders for the staff member's branch scope.
+    - `/status <order_no> <status>`: Updates order status in SQLite and sends a formatted status update message to the customer (`accepted`, `preparing`, `out_for_delivery`, `ready_for_pickup`, `completed`, `cancelled`).
+    - `/resume <user_id>`: Resolves open handoff records and returns the customer session to `stage="browsing"`.
 
 ---
 
