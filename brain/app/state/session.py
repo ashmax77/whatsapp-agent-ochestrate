@@ -53,6 +53,7 @@ class Session(BaseModel):
     last_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     handoff_until: Optional[datetime] = None
     last_order_no: Optional[str] = None
+    pending_voice_transcript: Optional[str] = None
 
     def add_history(self, role: str, content: str, max_turns: int = 12) -> None:
         self.history.append({"role": role, "content": content})
@@ -105,6 +106,7 @@ class Session(BaseModel):
         self.promo_code = None
         self.summary_hash = None
         self.summary_msg_no = None
+        self.pending_voice_transcript = None
         self.stage = "browsing"
 
 

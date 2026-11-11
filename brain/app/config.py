@@ -126,5 +126,22 @@ class Settings(BaseModel):
     LOG_LEVEL: str = Field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
     MAX_TOOL_ITERATIONS: int = 6
 
+    # Phase 6: Voice Notes (STT & Optional TTS)
+    STT_PROVIDER: str = Field(default_factory=lambda: os.getenv("STT_PROVIDER", "faster_whisper"))
+    STT_MODEL: str = Field(default_factory=lambda: os.getenv("STT_MODEL", "small"))
+    STT_CONFIDENCE_THRESHOLD: float = Field(
+        default_factory=lambda: float(os.getenv("STT_CONFIDENCE_THRESHOLD", "0.75"))
+    )
+    MAX_AUDIO_SECONDS: float = Field(
+        default_factory=lambda: float(os.getenv("MAX_AUDIO_SECONDS", "60.0"))
+    )
+    MAX_AUDIO_BYTES: int = Field(
+        default_factory=lambda: int(os.getenv("MAX_AUDIO_BYTES", "2097152"))
+    )
+    TTS_ENABLED: bool = Field(
+        default_factory=lambda: os.getenv("TTS_ENABLED", "false").lower() == "true"
+    )
+    TTS_PROVIDER: str = Field(default_factory=lambda: os.getenv("TTS_PROVIDER", "openai"))
+
 
 settings = Settings()

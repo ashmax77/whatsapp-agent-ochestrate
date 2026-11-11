@@ -18,6 +18,9 @@ class IncomingMessage(BaseModel):
     location: Optional[LocationPayload] = None
     audio_b64: Optional[str] = None
     audio_mime: Optional[str] = None
+    audio_seconds: Optional[float] = None
+    source: Literal["text", "voice", "location"] = "text"
+    stt_confidence: Optional[float] = None
     timestamp: Optional[int] = None
 
 
