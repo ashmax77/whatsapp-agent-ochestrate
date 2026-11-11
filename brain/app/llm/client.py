@@ -51,7 +51,8 @@ class LLMClient:
         max_tokens: int = 800,
         temperature: float = 0.2,
         tools: Optional[List[Dict[str, Any]]] = None,
-        retries: int = 0
+        retries: int = 0,
+        tool_choice: str = "auto",
     ) -> LLMResponse:
         """
         Executes a completion with automated retries, latency timing, and token accounting.
@@ -80,7 +81,7 @@ class LLMClient:
                 }
                 if tools:
                     kwargs["tools"] = tools
-                    kwargs["tool_choice"] = "auto"
+                    kwargs["tool_choice"] = tool_choice if tool_choice in ("auto", "required", "none") else "auto"
 
                 resp = client.chat.completions.create(**kwargs)
                 latency = (time.perf_counter() - start_time) * 1000
