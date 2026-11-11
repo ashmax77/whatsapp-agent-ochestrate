@@ -1,2 +1,0 @@
-"""Brain Application Package"""
-

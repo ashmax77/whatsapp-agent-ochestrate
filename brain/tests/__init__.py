@@ -1,2 +1,0 @@
-"""Brain tests package"""
-
