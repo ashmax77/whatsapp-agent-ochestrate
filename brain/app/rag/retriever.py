@@ -91,11 +91,19 @@ class _IndexState(BaseModel):
 
 
 class _CrossEncoderReranker:
-    """Optional notebook-style cross-encoder. Enabled only when RERANKER_MODEL is set."""
+    """Optional cross-encoder. Enabled only when RERANKER_MODEL is set. Cached singleton."""
+    _instance = None
+    _loaded_model_name = None
 
     def __init__(self, model_name: str):
-        from sentence_transformers import CrossEncoder  # optional dependency
-        self.model = CrossEncoder(model_name)
+        if _CrossEncoderReranker._instance is None or _CrossEncoderReranker._loaded_model_name != model_name:
+            from sentence_transformers import CrossEncoder  # optional dependency
+            try:
+                _CrossEncoderReranker._instance = CrossEncoder(model_name, local_files_only=True)
+            except Exception:
+                _CrossEncoderReranker._instance = CrossEncoder(model_name)
+            _CrossEncoderReranker._loaded_model_name = model_name
+        self.model = _CrossEncoderReranker._instance
 
     def scores(self, query: str, texts: List[str]) -> List[float]:
         return [float(s) for s in self.model.predict([(query, t) for t in texts])]
@@ -199,8 +207,8 @@ class KnowledgeRetriever:
         state = self._state
         if state.matrix is None or self._query_api_failed:
             return None
-        if state.backend != LOCAL_BACKEND and not state.backend.startswith("api:"):
-            return None  # unknown vector space (legacy / older local version)
+        if not (state.backend.startswith("fastembed:") or state.backend.startswith("local-hash") or state.backend.startswith("api:")):
+            return None  # unknown vector space
         try:
             vec = np.array(embedding_service.embed_with_backend(query, state.backend), dtype=np.float32)
         except Exception as e:
@@ -250,7 +258,12 @@ class KnowledgeRetriever:
         kw = bm25 / (bm25 + 4.0) if bm25 > 0 else 0.0
         if not has_vectors:
             return kw
-        w_sem, w_kw = FUSION_WEIGHTS["local" if self._state.backend.startswith("local") else "api"]
+        backend = self._state.backend
+        is_dense = backend.startswith("fastembed:") or backend.startswith("api:")
+        w_sem, w_kw = FUSION_WEIGHTS["api" if is_dense else "local"]
+        # If there is zero keyword match across the entire catalog and cosine similarity is mediocre, treat as off-topic
+        if is_dense and kw == 0.0 and cos < 0.60:
+            return 0.0
         return w_sem * max(cos, 0.0) + w_kw * kw
 
     def retrieve(

@@ -15,6 +15,11 @@ if env_file.exists():
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     key, val = line.split("=", 1)
+                    # Strip inline comments (e.g. # comment)
+                    if " #" in val:
+                        val = val.split(" #", 1)[0]
+                    elif "\t#" in val:
+                        val = val.split("\t#", 1)[0]
                     # Strip quotes if present
                     val = val.strip().strip("'").strip('"')
                     os.environ.setdefault(key.strip(), val)
@@ -23,10 +28,14 @@ if env_file.exists():
 
 
 class Settings(BaseModel):
+    
     PROJECT_NAME: str = "Pizza Hut WhatsApp Multi-Agent Brain"
     
     # LLM Settings
     LLM_PROVIDER: str = Field(default_factory=lambda: os.getenv("LLM_PROVIDER", "openai"))
+    OPENAI_BASE_URL: str = Field(
+        default_factory=lambda: os.getenv("OPENAI_BASE_URL", "https://codecraftapi.com/v1")
+    )
     OPENAI_API_KEY: str = Field(
         default_factory=lambda: os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY", "")
     )
@@ -39,16 +48,16 @@ class Settings(BaseModel):
     
     # Models
     ORCHESTRATOR_MODEL: str = Field(
-        default_factory=lambda: os.getenv("ORCHESTRATOR_MODEL", "gpt-4o")
+        default_factory=lambda: os.getenv("ORCHESTRATOR_MODEL", "gpt-5.5")
     )
     SUBAGENT_MODEL: str = Field(
-        default_factory=lambda: os.getenv("SUBAGENT_MODEL", "gpt-4o-mini")
+        default_factory=lambda: os.getenv("SUBAGENT_MODEL", "gemini-3.7-flash")
     )
     JUDGE_MODEL: str = Field(
-        default_factory=lambda: os.getenv("JUDGE_MODEL", "gpt-4o")
+        default_factory=lambda: os.getenv("JUDGE_MODEL", "gpt-5.5-pro")
     )
     EMBEDDING_MODEL: str = Field(
-        default_factory=lambda: os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+        default_factory=lambda: os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
     )
 
     # Paths

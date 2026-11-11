@@ -8,24 +8,27 @@ from app.rag.text import tokenize
 log = logging.getLogger("brain.embeddings")
 
 LOCAL_DIM = 384
-# Versioned: changing the local algorithm changes its vector space, so old indexes
-# must be rebuilt. The manifest records this name and the retriever matches it.
-LOCAL_BACKEND = f"local-hash-v2-{LOCAL_DIM}"
+FASTEMBED_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+FASTEMBED_BACKEND = f"fastembed:{FASTEMBED_MODEL_NAME}"
+HASH_BACKEND = f"local-hash-v2-{LOCAL_DIM}"
+LOCAL_BACKEND = FASTEMBED_BACKEND
 
 
 class EmbeddingService:
     """
-    Embeds text with either the API model (via app.llm.client) or a deterministic
-    local fallback.
+    Embeds text with either FastEmbed (state-of-the-art offline ONNX transformer),
+    an API model (via OpenAI / proxy), or a deterministic hash fallback.
 
-    The two backends produce vectors of different sizes in different spaces, so an
-    index must always be queried with the backend that built it. The backend name
-    is recorded in the index manifest (index_info.json) and passed back in here.
+    The backends produce vectors in different spaces, so an index must always
+    be queried with the backend that built it. The backend name is recorded
+    in the index manifest (index_info.json) and passed back in here.
     """
 
     def __init__(self, model_name: Optional[str] = None):
         self.model_name = model_name or settings.EMBEDDING_MODEL
         self._api_unavailable = False
+        self._fastembed_model = None
+        self._fastembed_unavailable = False
 
     @property
     def api_backend(self) -> str:
@@ -40,19 +43,40 @@ class EmbeddingService:
     def api_available(self) -> bool:
         return bool(settings.OPENAI_API_KEY or settings.CODECRAFT_KEY) and not self._api_unavailable
 
+    def _get_fastembed(self):
+        if self._fastembed_model is None and not self._fastembed_unavailable:
+            try:
+                from fastembed import TextEmbedding
+                self._fastembed_model = TextEmbedding(model_name=FASTEMBED_MODEL_NAME)
+                log.info("Initialized high-performance FastEmbed model: %s", FASTEMBED_MODEL_NAME)
+            except Exception as e:
+                log.warning("FastEmbed unavailable (%s). Falling back to hash embedder.", e)
+                self._fastembed_unavailable = True
+        return self._fastembed_model
+
+    def _fastembed_embed(self, text: str) -> List[float]:
+        model = self._get_fastembed()
+        if model is None:
+            return self._local_fallback_embed(text)
+        vec = list(model.embed([text]))[0]
+        return self._normalize(np.array(vec, dtype=np.float32)).tolist()
+
     def resolve_backend(self, prefer_local: bool = False) -> str:
         """
-        Picks the backend for a new build: probes the API once, falls back to local.
+        Picks the backend for a new build: probes API if preferred, otherwise uses FastEmbed.
         """
-        if prefer_local or not self.api_available():
-            return LOCAL_BACKEND
-        try:
-            self._embed_api("probe")
-            return self.api_backend
-        except Exception as e:
-            log.info("API embedding unavailable (%s). Using local embeddings for this build.", e)
-            self._api_unavailable = True
-            return LOCAL_BACKEND
+        if prefer_local:
+            return FASTEMBED_BACKEND if not self._fastembed_unavailable else HASH_BACKEND
+
+        if self.api_available():
+            try:
+                self._embed_api("probe")
+                return self.api_backend
+            except Exception as e:
+                log.info("API embedding unavailable (%s). Using FastEmbed for this build.", e)
+                self._api_unavailable = True
+
+        return FASTEMBED_BACKEND if not self._fastembed_unavailable else HASH_BACKEND
 
     def _embed_api(self, text: str) -> List[float]:
         from app.llm.client import llm_client
@@ -65,16 +89,23 @@ class EmbeddingService:
         never silently mix vector spaces.
         """
         clean_text = text.strip()
-        if backend == LOCAL_BACKEND:
-            return self._local_fallback_embed(clean_text)
         if not clean_text:
-            raise ValueError("Cannot embed empty text with the API backend.")
-        return self._embed_api(clean_text)
+            return [0.0] * LOCAL_DIM
+
+        if backend == FASTEMBED_BACKEND or backend.startswith("fastembed:"):
+            return self._fastembed_embed(clean_text)
+        if backend == HASH_BACKEND or backend.startswith("local-hash"):
+            return self._local_fallback_embed(clean_text)
+        if backend.startswith("api:"):
+            return self._embed_api(clean_text)
+
+        # Default to FastEmbed
+        return self._fastembed_embed(clean_text)
 
     def embed_text(self, text: str) -> List[float]:
         """
         Embeds a single string into a normalized dense vector.
-        Uses API if available and reachable; falls back cleanly to local embedding.
+        Uses FastEmbed / API if available and reachable; falls back cleanly to hash.
         """
         clean_text = text.strip()
         if not clean_text:
@@ -85,10 +116,10 @@ class EmbeddingService:
             try:
                 return self._embed_api(clean_text)
             except Exception as e:
-                log.info("API embedding unavailable (%s). Switching to fast local embeddings.", e)
+                log.info("API embedding unavailable (%s). Switching to FastEmbed.", e)
                 self._api_unavailable = True
 
-        return self._local_fallback_embed(clean_text)
+        return self._fastembed_embed(clean_text)
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         return [self.embed_text(t) for t in texts]

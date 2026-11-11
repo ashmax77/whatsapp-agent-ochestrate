@@ -34,16 +34,12 @@ class LLMClient:
         if self._openai_client is None:
             import openai
             api_key = settings.OPENAI_API_KEY or settings.CODECRAFT_KEY
-            base_url = None
-            if settings.CODECRAFT_KEY and not settings.OPENAI_API_KEY:
-                # If using CodeCraft key, check if base_url is configured via env
-                import os
-                base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            base_url = settings.OPENAI_BASE_URL or None
             self._openai_client = openai.OpenAI(
                 api_key=api_key or "sk-dummy",
                 base_url=base_url,
-                max_retries=0,
-                timeout=3.0
+                max_retries=1,
+                timeout=25.0
             )
         return self._openai_client
 
