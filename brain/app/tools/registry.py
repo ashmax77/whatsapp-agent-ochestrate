@@ -294,21 +294,21 @@ class ToolRegistry:
             description="Set fulfilment mode to 'delivery' or 'pickup'.",
             schema_cls=OrderSetFulfilmentInput,
             handler=order_set_fulfilment,
-            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
+            allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="delivery.set_address",
             description="Resolve delivery address or location pin to a branch and delivery zone.",
             schema_cls=DeliverySetAddressInput,
             handler=delivery_set_address,
-            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
+            allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="order.set_pickup",
             description="Set pickup branch and verify pickup opening hours.",
             schema_cls=OrderSetPickupInput,
             handler=order_set_pickup,
-            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
+            allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="delivery.quote",
@@ -324,14 +324,14 @@ class ToolRegistry:
             description="Validate and apply a promo code (e.g. FRIDAY10, STUDENT15) to the order.",
             schema_cls=PromoApplyInput,
             handler=promo_apply,
-            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
+            allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],
         ))
         self.register(ToolSpec(
             name="promo.remove",
             description="Remove the active promo code from the order.",
             schema_cls=EmptyInput,
             handler=promo_remove,
-            allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
+            allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],
         ))
 
         # Order summary & checkout tools

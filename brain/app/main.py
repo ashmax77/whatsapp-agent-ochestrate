@@ -3,10 +3,15 @@ import logging
 from pathlib import Path
 from fastapi import FastAPI
 
-# Ensure the 'brain' directory is in sys.path so 'import app...' works from anywhere
+# Ensure the 'brain' directory and local venv site-packages are in sys.path
 BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
+
+# Auto-bind .venv site-packages if running from an unactivated environment
+VENV_SITE = BASE_DIR / ".venv" / "Lib" / "site-packages"
+if VENV_SITE.exists() and str(VENV_SITE) not in sys.path:
+    sys.path.insert(0, str(VENV_SITE))
 
 from app.schemas import IncomingMessage, BrainReply, BrainReplyMeta
 from app.agents.orchestrator import orchestrator

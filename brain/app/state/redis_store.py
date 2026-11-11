@@ -47,8 +47,17 @@ class RedisSessionStore(SessionStore):
             return
 
         lock_key = f"lock:user:{user_id}"
-        lock = self._redis.lock(lock_key, timeout=30, blocking_timeout=10)
-        acquired = await lock.acquire()
+        acquired = False
+        try:
+            lock = self._redis.lock(lock_key, timeout=30, blocking_timeout=0.5)
+            acquired = await lock.acquire()
+        except Exception as e:
+            log.warning("Redis lock error for %s (%s). Falling back to memory store.", user_id, e)
+            self._available = False
+            async with self._fallback.lock(user_id):
+                yield
+            return
+
         try:
             yield
         finally:
@@ -70,6 +79,7 @@ class RedisSessionStore(SessionStore):
                 return Session(**data)
         except Exception as e:
             log.warning("Redis get error for %s (%s). Falling back to memory.", user_id, e)
+            self._available = False
 
         return await self._fallback.get(user_id)
 
@@ -83,6 +93,7 @@ class RedisSessionStore(SessionStore):
             await self._redis.set(key, raw, ex=settings.SESSION_TTL_SECONDS)
         except Exception as e:
             log.warning("Redis save error for %s (%s).", session.user_id, e)
+            self._available = False
             await self._fallback.save(session)
 
     async def delete(self, user_id: str) -> None:
@@ -92,7 +103,7 @@ class RedisSessionStore(SessionStore):
         try:
             await self._redis.delete(f"session:{user_id}")
         except Exception:
-            pass
+            self._available = False
         await self._fallback.delete(user_id)
 
     async def is_duplicate_message(self, user_id: str, message_id: str) -> bool:
@@ -106,6 +117,7 @@ class RedisSessionStore(SessionStore):
             exists = await self._redis.exists(key)
             return bool(exists)
         except Exception:
+            self._available = False
             return await self._fallback.is_duplicate_message(user_id, message_id)
 
     async def get_cached_reply(self, user_id: str, message_id: str) -> Optional[BrainReply]:
@@ -120,7 +132,7 @@ class RedisSessionStore(SessionStore):
             if raw:
                 return BrainReply(**json.loads(raw))
         except Exception:
-            pass
+            self._available = False
         return await self._fallback.get_cached_reply(user_id, message_id)
 
     async def record_message_reply(self, user_id: str, message_id: str, reply: BrainReply) -> None:
@@ -133,6 +145,7 @@ class RedisSessionStore(SessionStore):
         try:
             await self._redis.set(key, reply.model_dump_json(), ex=settings.DEDUPE_TTL_SECONDS)
         except Exception:
+            self._available = False
             await self._fallback.record_message_reply(user_id, message_id, reply)
 
     async def check_rate_limit(
@@ -151,5 +164,6 @@ class RedisSessionStore(SessionStore):
                 return False, 0
             return True, max(0, max_msgs - current)
         except Exception:
+            self._available = False
             return await self._fallback.check_rate_limit(user_id, limit=limit, window_secs=window_secs)
 

@@ -189,8 +189,8 @@ Phase 5 introduces the central conversational orchestrator that glues together n
   - Local Redis dev environment pre-configured in `docker-compose.dev.yml` (`docker compose -f docker-compose.dev.yml up -d`).
 - **Stage-Aware Tool Filtering (`app/tools/registry.py`)**:
   - Dynamically filters tool schemas exposed to the orchestrator model based on current `session.stage`.
-  - While `browsing`, cart mutations and order placement tools are concealed.
-  - While `building_cart` or `collecting_fulfilment`, cart updates and address resolution tools are active, but `order.place_order` remains strictly concealed.
+  - While `browsing`, customers can query the menu, knowledge base, check branch opening status, check delivery coverage / address resolution (`delivery.set_address`), and validate active promotions (`promo.apply`). Cart mutations and final checkout remain guarded.
+  - While `building_cart` or `collecting_fulfilment`, full cart updates, fulfilment selections, and receipt generation (`order.show_summary`) are active, but `order.place_order` remains strictly concealed.
   - Only when the session enters `confirming` is `order.place_order` exposed to the model, preventing premature order placement.
 - **Prompt Versioning & System Rules (`app/agents/prompts/orchestrator_v1.md`)**:
   - Versioned prompt template (`orchestrator_v1`) enforcing single-turn tool calling, concise WhatsApp formatting, strict pricing integrity (never calculate money in text), and refusing customer access to internal employee information.
