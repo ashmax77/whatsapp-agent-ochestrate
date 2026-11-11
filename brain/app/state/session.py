@@ -54,6 +54,7 @@ class Session(BaseModel):
     handoff_until: Optional[datetime] = None
     last_order_no: Optional[str] = None
     pending_voice_transcript: Optional[str] = None
+    consecutive_failures: int = 0
 
     def add_history(self, role: str, content: str, max_turns: int = 12) -> None:
         self.history.append({"role": role, "content": content})

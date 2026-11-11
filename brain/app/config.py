@@ -143,5 +143,24 @@ class Settings(BaseModel):
     )
     TTS_PROVIDER: str = Field(default_factory=lambda: os.getenv("TTS_PROVIDER", "openai"))
 
+    # Phase 7: Escalation, Post-Order & Per-Branch Staff Notifications
+    GATEWAY_INTERNAL_URL: str = Field(
+        default_factory=lambda: os.getenv("GATEWAY_INTERNAL_URL", "http://127.0.0.1:3001")
+    )
+    INTERNAL_SECRET: str = Field(
+        default_factory=lambda: os.getenv("INTERNAL_SECRET", "pizza-internal-dev-secret")
+    )
+    HANDOFF_DURATION_HOURS: int = Field(
+        default_factory=lambda: int(os.getenv("HANDOFF_DURATION_HOURS", "2"))
+    )
+    STAFF_NOTIFY_JIDS: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "colombo07": os.getenv("STAFF_JID_COLOMBO07", "94770000001"),
+            "nugegoda": os.getenv("STAFF_JID_NUGEGODA", "94770000002"),
+            "kandy": os.getenv("STAFF_JID_KANDY", "94770000003"),
+            "area": os.getenv("STAFF_JID_AREA", "94770000000"),
+        }
+    )
+
 
 settings = Settings()

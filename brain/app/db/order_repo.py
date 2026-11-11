@@ -310,6 +310,106 @@ class OrderRepo:
             ).fetchall()
         return [o for r in rows if (o := self.get_order_by_no(r["order_no"])) is not None]
 
+    def update_order_status(self, order_no: str, status: OrderStatus) -> Optional[Order]:
+        clean_no = order_no.strip().upper()
+        with self._connect() as conn:
+            cur = conn.execute(
+                "UPDATE orders SET status = ? WHERE order_no = ?",
+                (status.value, clean_no),
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                return None
+        return self.get_order_by_no(clean_no)
+
+    def list_recent_orders(self, branch_id: Optional[str] = None, limit: int = 10) -> List[Order]:
+        with self._connect() as conn:
+            if branch_id:
+                rows = conn.execute(
+                    "SELECT order_no FROM orders WHERE branch_id = ? ORDER BY id DESC LIMIT ?",
+                    (branch_id, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT order_no FROM orders ORDER BY id DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+        return [o for r in rows if (o := self.get_order_by_no(r["order_no"])) is not None]
+
+    def create_handoff(
+        self,
+        user_id: str,
+        reason: str,
+        branch_id: Optional[str] = None,
+        now_dt: Optional[datetime] = None,
+    ) -> Handoff:
+        current = clock.now(now_dt)
+        now_iso = current.isoformat()
+        with self._connect() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO handoffs (user_id, branch_id, reason, status, created_at)
+                VALUES (?, ?, ?, 'open', ?)
+                """,
+                (user_id, branch_id, reason, now_iso),
+            )
+            conn.commit()
+            handoff_id = int(cur.lastrowid)
+
+        return Handoff(
+            id=handoff_id,
+            user_id=user_id,
+            branch_id=branch_id,
+            reason=reason,
+            status="open",
+            created_at=current,
+            resolved_at=None,
+        )
+
+    def resolve_handoffs_for_user(
+        self,
+        user_id: str,
+        now_dt: Optional[datetime] = None,
+    ) -> int:
+        current = clock.now(now_dt)
+        now_iso = current.isoformat()
+        with self._connect() as conn:
+            cur = conn.execute(
+                """
+                UPDATE handoffs
+                SET status = 'resolved', resolved_at = ?
+                WHERE user_id = ? AND status = 'open'
+                """,
+                (now_iso, user_id),
+            )
+            conn.commit()
+            return int(cur.rowcount)
+
+    def list_open_handoffs(self, branch_id: Optional[str] = None) -> List[Handoff]:
+        with self._connect() as conn:
+            if branch_id:
+                rows = conn.execute(
+                    "SELECT * FROM handoffs WHERE status = 'open' AND branch_id = ? ORDER BY id DESC",
+                    (branch_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM handoffs WHERE status = 'open' ORDER BY id DESC"
+                ).fetchall()
+
+        return [
+            Handoff(
+                id=r["id"],
+                user_id=r["user_id"],
+                branch_id=r["branch_id"],
+                reason=r["reason"],
+                status=r["status"],
+                created_at=datetime.fromisoformat(r["created_at"]),
+                resolved_at=datetime.fromisoformat(r["resolved_at"]) if r["resolved_at"] else None,
+            )
+            for r in rows
+        ]
+
 
 order_repo = OrderRepo()
 
