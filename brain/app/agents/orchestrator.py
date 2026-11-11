@@ -8,7 +8,14 @@ from app.config import settings
 from app.schemas import BrainReply, BrainReplyMeta, IncomingMessage
 from app.state.session import Session, get_session_store
 from app.services.language import detect_language
-from app.services.post_processor import verify_and_post_process_reply
+from app.services.post_processor import find_unverified_prices, verify_and_post_process_reply
+from app.services.action_guard import (
+    ClaimReport,
+    check_reply,
+    correction_message,
+    normalize_tool_name,
+    safe_fallback,
+)
 from app.services.branch_repo import branch_repo
 from app.services.menu_repo import menu_repo
 from app.services.notifier import notifier
@@ -24,6 +31,9 @@ log = logging.getLogger("brain.orchestrator")
 
 PROMPT_VERSION = "orchestrator_v1"
 PROMPT_FILE = settings.PROMPTS_DIR / f"{PROMPT_VERSION}.md"
+
+# How many times one turn may send the model back to make a real tool call
+MAX_CLAIM_CORRECTIONS = 2
 
 _VOICE_CONFIRM_YES = {
     "yes", "y", "correct", "ok", "okay", "sure", "confirm", "right", "ow", "hari", "ඔව්", "හරි", "ஆம்", "சரி",
@@ -51,11 +61,40 @@ class Orchestrator:
     def __init__(self):
         self.prompt_template = load_system_prompt()
 
+    def _cart_description(self, session: Session) -> str:
+        """Cart summary with indexed lines so the model can address them in cart.update_item / remove_item."""
+        if not session.cart:
+            return "empty"
+        sub = pricing.subtotal(session.cart)
+        lines = []
+        for i, line in enumerate(session.cart):
+            item = menu_repo.get_item(line.item_id) or menu_repo.get_combo(line.item_id)
+            name = item.name if item else line.item_id
+            lines.append(f"[{i}] {line.qty} x {name} ({line.size}) id={line.item_id}")
+        return f"{len(session.cart)} line(s), food subtotal LKR {sub:,}; lines: " + "; ".join(lines)
+
+    def _audit_reply(
+        self,
+        reply: str,
+        session: Session,
+        ok_tools: set,
+        executed_tools: List[Dict[str, Any]],
+        user_text: str,
+    ) -> ClaimReport:
+        """Checks a candidate reply for claimed-but-unexecuted actions, fake order numbers and unverified prices."""
+        valid_order_nos = {
+            res["data"]["order_no"]
+            for res in executed_tools
+            if res.get("ok") and isinstance(res.get("data"), dict) and res["data"].get("order_no")
+        }
+        if session.last_order_no:
+            valid_order_nos.add(session.last_order_no)
+        report = check_reply(reply, ok_tools, valid_order_nos)
+        report.unverified_prices = find_unverified_prices(reply, session, executed_tools, user_text)
+        return report
+
     def _build_state_block(self, session: Session) -> str:
-        cart_desc = "empty"
-        if session.cart:
-            sub = pricing.subtotal(session.cart)
-            cart_desc = f"{len(session.cart)} item(s), food subtotal LKR {sub:,}"
+        cart_desc = self._cart_description(session)
 
         open_statuses = []
         for b in branch_repo.list_branches():
@@ -319,6 +358,9 @@ class Orchestrator:
 
             session.message_count += 1
             executed_tools: List[Dict[str, Any]] = []
+            ok_tool_names: set = set()  # tools that returned ok=True during THIS turn
+            corrections = 0
+            force_tool = False
             reply_text = ""
 
             # 7. Tool loop (up to MAX_TOOL_ITERATIONS)
@@ -327,14 +369,19 @@ class Orchestrator:
                 iteration += 1
                 available_tools = registry.tools_for_stage(session.stage)
 
+                llm_kwargs: Dict[str, Any] = dict(
+                    system=system_prompt,
+                    messages=conversation_msgs,
+                    model=settings.ORCHESTRATOR_MODEL,
+                    tools=available_tools if available_tools else None,
+                    temperature=0.1,
+                )
+                if force_tool and available_tools:
+                    llm_kwargs["tool_choice"] = "required"
+                force_tool = False
+
                 try:
-                    llm_resp = llm_client.complete(
-                        system=system_prompt,
-                        messages=conversation_msgs,
-                        model=settings.ORCHESTRATOR_MODEL,
-                        tools=available_tools if available_tools else None,
-                        temperature=0.1,
-                    )
+                    llm_resp = llm_client.complete(**llm_kwargs)
                 except Exception as e:
                     log.warning("[%s] Orchestrator LLM completion failed (%s). Executing fallback.", trace_id, e)
                     # Safe fallback: if user is asking questions, route to knowledge agent
@@ -343,7 +390,25 @@ class Orchestrator:
                     break
 
                 if not llm_resp.tool_calls:
-                    reply_text = llm_resp.text.strip()
+                    candidate = llm_resp.text.strip()
+                    report = self._audit_reply(candidate, session, ok_tool_names, executed_tools, raw_text)
+                    if report.needs_tool_call and corrections < MAX_CLAIM_CORRECTIONS:
+                        # The reply states something no tool backed up. Send the model back to do it for real.
+                        corrections += 1
+                        log.warning(
+                            "[%s] Unbacked reply (claims=%s fake_order_nos=%s prices=%s). Forcing tool call (%d/%d).",
+                            trace_id, report.unsupported, report.fabricated_order_numbers,
+                            report.unverified_prices, corrections, MAX_CLAIM_CORRECTIONS,
+                        )
+                        conversation_msgs.append({"role": "assistant", "content": candidate})
+                        conversation_msgs.append({"role": "user", "content": correction_message(report)})
+                        force_tool = True
+                        continue
+                    if report.needs_tool_call:
+                        log.error("[%s] Reply still unbacked after corrections; using honest fallback.", trace_id)
+                        reply_text = safe_fallback(report, session.stage)
+                    else:
+                        reply_text = candidate
                     break
 
                 # Execute tool calls
@@ -376,6 +441,7 @@ class Orchestrator:
 
                     if tool_res.get("ok"):
                         session.consecutive_failures = 0
+                        ok_tool_names.add(normalize_tool_name(fn_name))
                     else:
                         session.consecutive_failures += 1
                         if session.consecutive_failures >= 3 and session.stage != "handoff":
@@ -406,7 +472,7 @@ class Orchestrator:
                 reply_text = "I'm working on your request. Let me connect you with one of our staff members to assist you directly 🙏"
 
             # 8. Post-process reply (price integrity & formatting)
-            processed_text = verify_and_post_process_reply(reply_text, session, executed_tools)
+            processed_text = verify_and_post_process_reply(reply_text, session, executed_tools, user_text=raw_text)
 
             # 9. Update history & save session
             session.add_history("user", raw_text)
