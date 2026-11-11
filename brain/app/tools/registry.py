@@ -24,6 +24,7 @@ from app.tools.order_tools import (
     order_set_pickup,
     order_show_summary,
 )
+from app.agents.escalation_agent import escalation_handoff_tool
 
 
 # ------------------------------------------------------------------
@@ -31,6 +32,14 @@ from app.tools.order_tools import (
 # ------------------------------------------------------------------
 class EmptyInput(BaseModel):
     pass
+
+
+class EscalationHandoffInput(BaseModel):
+    reason: str = Field(description="Concise reason for handing the conversation over to human staff")
+    category: str = Field(
+        default="general",
+        description="Escalation category (complaint, refund_or_compensation, severe_allergy, food_safety_or_illness, abusive_or_frustrated, manager_or_human_request)",
+    )
 
 
 class KBAskInput(BaseModel):
@@ -355,6 +364,13 @@ class ToolRegistry:
             schema_cls=EmptyInput,
             handler=order_cancel_draft,
             allowed_stages=["building_cart", "collecting_fulfilment", "confirming"],
+        ))
+        self.register(ToolSpec(
+            name="escalation.handoff",
+            description="Hand the conversation over to human staff for complaints, refunds, severe allergies, food safety, or manager requests.",
+            schema_cls=EscalationHandoffInput,
+            handler=escalation_handoff_tool,
+            allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],
         ))
 
 

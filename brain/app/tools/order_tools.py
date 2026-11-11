@@ -360,6 +360,14 @@ def order_place_order(
     session.summary_hash = None
     session.summary_msg_no = None
 
+    # Phase 7: Notify the order's branch staff exactly once (failures logged, never block order placement)
+    try:
+        from app.agents.post_order_agent import post_order_agent
+
+        post_order_agent.on_order_placed(persisted)
+    except Exception:
+        pass
+
     return {
         "ok": True,
         "data": {

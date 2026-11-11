@@ -11,10 +11,13 @@ from app.services.language import detect_language
 from app.services.post_processor import verify_and_post_process_reply
 from app.services.branch_repo import branch_repo
 from app.services.menu_repo import menu_repo
-from app.services import pricing
+from app.services.notifier import notifier
+from app.services import clock, pricing
 from app.tools.registry import registry
 from app.llm.client import llm_client
 from app.agents.knowledge_agent import knowledge_agent
+from app.agents.escalation_agent import escalation_agent
+from app.agents.post_order_agent import post_order_agent
 from app.voice.tts import tts_service
 
 log = logging.getLogger("brain.orchestrator")
@@ -138,6 +141,20 @@ class Orchestrator:
         store = get_session_store()
         user_id = msg.user_id
 
+        # 0. Phase 7: Authenticated Staff Command Routing (/orders, /status, /resume)
+        raw_incoming = (msg.content or "").strip()
+        if raw_incoming.startswith("/"):
+            staff_reply = await post_order_agent.handle_staff_command(
+                sender_user_id=user_id,
+                raw_text=raw_incoming,
+                store=store,
+            )
+            if staff_reply is not None:
+                return BrainReply(
+                    reply_text=staff_reply,
+                    meta=BrainReplyMeta(stage="browsing", trace_id=trace_id),
+                )
+
         # 1. Acquire per-user lock
         async with store.lock(user_id):
             # 2. Check deduplication
@@ -178,6 +195,28 @@ class Orchestrator:
 
             # Detect language
             session.language = detect_language(raw_text)
+
+            # 5a. Phase 7: Active Handoff check (stay silent & forward to staff unless 2h expired)
+            if session.stage == "handoff":
+                now_dt = clock.now()
+                if session.handoff_until and now_dt >= session.handoff_until:
+                    session.stage = "browsing"
+                    session.handoff_until = None
+                else:
+                    session.add_history("user", raw_text)
+                    await store.save(session)
+                    notifier.forward_customer_message(session, raw_text)
+                    silent_reply = BrainReply(
+                        reply_text=None,
+                        meta=BrainReplyMeta(
+                            stage="handoff",
+                            branch_id=session.branch_id,
+                            trace_id=trace_id,
+                        ),
+                    )
+                    if msg.message_id:
+                        await store.record_message_reply(user_id, msg.message_id, silent_reply)
+                    return silent_reply
 
             # 5b. Phase 6: Voice Transcript Confirmation Rule handling
             effective_source = msg.source
@@ -240,6 +279,33 @@ class Orchestrator:
                     msg.stt_confidence,
                     raw_text,
                 )
+                return reply
+
+            # 5c. Phase 7: Pre-LLM Escalation Rule Check (complaints, refunds, severe allergies, food safety, abuse, manager)
+            esc_decision = escalation_agent.evaluate(raw_text, session=session)
+            if esc_decision.escalate:
+                handoff_res = escalation_agent.execute_handoff(
+                    session=session,
+                    reason=esc_decision.reason,
+                    category=esc_decision.category,
+                    is_critical=esc_decision.is_critical,
+                    latest_user_message=raw_text,
+                )
+                reply_str = handoff_res["data"]["customer_reply"]
+                session.add_history("user", raw_text)
+                session.add_history("assistant", reply_str)
+                await store.save(session)
+                reply = BrainReply(
+                    reply_text=reply_str,
+                    meta=BrainReplyMeta(
+                        stage=session.stage,
+                        branch_id=session.branch_id,
+                        trace_id=trace_id,
+                    ),
+                )
+                self._attach_tts_if_needed(reply, session, msg.source)
+                if msg.message_id:
+                    await store.record_message_reply(user_id, msg.message_id, reply)
                 return reply
 
             # 6. Build prompt context
@@ -308,12 +374,30 @@ class Orchestrator:
                     tool_res = registry.call(fn_name, session=session, args=fn_args)
                     executed_tools.append(tool_res)
 
+                    if tool_res.get("ok"):
+                        session.consecutive_failures = 0
+                    else:
+                        session.consecutive_failures += 1
+                        if session.consecutive_failures >= 3 and session.stage != "handoff":
+                            handoff_res = escalation_agent.execute_handoff(
+                                session=session,
+                                reason="Bot failed three times in a row (3 consecutive tool errors).",
+                                category="repeated_failures",
+                                is_critical=False,
+                                latest_user_message=raw_text,
+                            )
+                            reply_text = handoff_res["data"]["customer_reply"]
+                            break
+
                     conversation_msgs.append({
                         "role": "tool",
                         "tool_call_id": tc["id"],
                         "name": fn_name,
                         "content": json.dumps(tool_res, ensure_ascii=False),
                     })
+
+                if session.stage == "handoff" and reply_text:
+                    break
 
                 # Refresh state block if tools mutated session
                 system_prompt = f"{self.prompt_template}\n\n{self._build_state_block(session)}"
