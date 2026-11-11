@@ -200,6 +200,46 @@ class TestOrchestratorIntegration(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("shift schedule:", text)
 
 
+class TestReferentResolutionWithEmbeddings(unittest.TestCase):
+    def test_pronoun_rewrite_with_embedding_similarity(self):
+        from app.agents.knowledge_agent import knowledge_agent
+        from app.rag.retriever import retriever
+
+        # 1. Single item in history: "Tell me about Margherita pizza" -> "Is it spicy?"
+        h1 = [
+            {"role": "user", "content": "Tell me about Margherita pizza"},
+            {"role": "assistant", "content": "Margherita is a classic vegetarian pizza with tomato sauce and mozzarella."},
+        ]
+        rewritten1 = knowledge_agent.rewrite_query("Is it spicy?", history=h1)
+        self.assertIn("Margherita", rewritten1)
+        self.assertNotIn("it", rewritten1.lower().split())
+
+        # Check retrieval on rewritten query: Margherita is top hit
+        hits1 = retriever.retrieve(rewritten1)
+        self.assertTrue(len(hits1) > 0)
+        self.assertEqual(hits1[0].id, "menu/pizzas#margherita")
+
+        # 2. Sizes follow up: "What sizes does it come in?"
+        rewritten2 = knowledge_agent.rewrite_query("What sizes does it come in?", history=h1)
+        self.assertIn("Margherita", rewritten2)
+        hits2 = retriever.retrieve(rewritten2)
+        hit_ids2 = [h.id for h in hits2]
+        self.assertIn("menu/customization#pizza-sizes", hit_ids2)
+        self.assertIn("menu/pizzas#margherita", hit_ids2)
+
+        # 3. Multiple vegetarian pizzas in history: "How many vegetarian pizzas do you have?"
+        h3 = [
+            {"role": "user", "content": "How many vegetarian pizzas do you have?"},
+            {"role": "assistant", "content": "We have 3 vegetarian pizzas: Margherita, Veggie Delight, and Cheese Lover."},
+        ]
+        rewritten3 = knowledge_agent.rewrite_query("Is it spicy?", history=h3)
+        self.assertTrue("Margherita" in rewritten3 or "Veggie Delight" in rewritten3 or "Cheese Lover" in rewritten3)
+        hits3 = retriever.retrieve(rewritten3)
+        hit_ids3 = [h.id for h in hits3]
+        has_veg_section = any("veggie" in hid or "cheese" in hid or "margherita" in hid or "vegetarian" in hid for hid in hit_ids3)
+        self.assertTrue(has_veg_section)
+
+
 if __name__ == "__main__":
     unittest.main()
 
