@@ -82,6 +82,16 @@
   setup: {stage: browsing, cart: []}
   turns:
     - user: "1 large Supreme and 2 garlic bread to Maharagama with FRIDAY10"
+      tool_calls:
+        - {name: "cart.add_item", args: {item_id: "pz_supreme", size: "large", qty: 1}}
+        - {name: "cart.add_item", args: {item_id: "sd_garlic_bread", size: "regular", qty: 2}}
+        - {name: "order.set_fulfilment", args: {mode: "delivery"}}
+        - {name: "delivery.set_address", args: {address_text: "Maharagama"}}
+        - {name: "promo.apply", args: {code: "FRIDAY10"}}
+        - {name: "order.show_summary", args: {}}
+    - user: "yes"
+      tool_calls:
+        - {name: "order.place_order", args: {}, use_summary_hash: true}
   expect:
     final_state: {stage: placed, branch_id: "nugegoda", promo_code: "FRIDAY10"}
 
@@ -128,5 +138,66 @@
   expect:
     final_state: {stage: handoff, branch_id: "colombo07"}
     forbidden_tools: ["order.place_order"]
+
+- id: t012
+  description: "Expired promo MONSOON is rejected cleanly"
+  clock: "2026-11-10T18:00:00+05:30"
+  setup:
+    stage: collecting_fulfilment
+    branch_id: "nugegoda"
+    fulfilment: "delivery"
+    cart: [{item_id: "pz_supreme", size: "large", qty: 1}]
+  turns:
+    - user: "apply MONSOON"
+      tool_call: {name: "promo.apply", args: {code: "MONSOON"}}
+  expect:
+    final_state: {promo_code: null}
+
+- id: t013
+  description: "Order after Kandy last delivery cutoff (22:05) is rejected"
+  clock: "2026-11-10T22:05:00+05:30"
+  setup:
+    stage: building_cart
+    cart: [{item_id: "pz_margherita", size: "large", qty: 1}]
+  turns:
+    - user: "deliver to Peradeniya"
+      tool_call: {name: "delivery.set_address", args: {address_text: "Peradeniya"}}
+  expect:
+    final_state: {branch_id: null}
+    forbidden_tools: ["order.place_order"]
+
+- id: t014
+  description: "Valid Family Combo addition updates cart"
+  clock: "2026-11-10T18:00:00+05:30"
+  setup: {stage: browsing, cart: []}
+  turns:
+    - user: "Add a Family Combo with large Supreme and medium Veggie Delight"
+      tool_call:
+        name: "cart.add_combo"
+        args:
+          combo_id: "cb_family"
+          choices:
+            large_pizza: "pz_supreme"
+            medium_pizza: "pz_veggie"
+            side: "sd_garlic_bread"
+            beverage: "bv_soft_drink_1500"
+  expect:
+    tool_calls_include: [{name: "cart.add_combo"}]
+    final_state: {stage: building_cart, cart: [{item_id: "cb_family", size: "bundle", qty: 1}]}
+
+- id: t015
+  description: "Out-of-area location pin (> 8km) leaves branch unset"
+  clock: "2026-11-10T18:00:00+05:30"
+  setup:
+    stage: collecting_fulfilment
+    fulfilment: "delivery"
+    cart: [{item_id: "pz_supreme", size: "large", qty: 1}]
+  turns:
+    - user: "Deliver to Galle (lat 6.0535, lng 80.2210)"
+      tool_call: {name: "delivery.set_address", args: {lat: 6.0535, lng: 80.2210}}
+  expect:
+    final_state: {branch_id: null}
+    forbidden_tools: ["order.place_order"]
+
 
 
