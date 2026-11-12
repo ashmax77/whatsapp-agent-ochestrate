@@ -187,10 +187,11 @@ def run_tools_eval(
                     orig_call = registry.call
 
                     def _spy_call(name: str, session: Session, args: Optional[Dict[str, Any]] = None, **kw):
-                        res = orig_call(name, session=session, args=args, **kw)
+                        norm_name = name.replace("__", ".")
+                        res = orig_call(norm_name, session=session, args=args, **kw)
                         executed_calls.append(
                             {
-                                "name": name,
+                                "name": norm_name,
                                 "args": dict(args or {}),
                                 "ok": bool(res.get("ok")),
                                 "res": res,
