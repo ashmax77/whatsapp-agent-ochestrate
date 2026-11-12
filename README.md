@@ -253,6 +253,33 @@ Phase 5 introduces the central conversational orchestrator that glues together n
 
 ---
 
+## Automated Evaluation Pipeline & Quality Gates (Phase 8)
+
+The system includes a 7-layer evaluation framework (`brain/eval/`) designed for both deterministic offline CI (`--offline`) and live LLM regression checks:
+
+- **L1 — Retrieval Eval (`eval/runners/retrieval_eval.py`, `eval/datasets/retrieval.yaml`)**:
+  - Evaluates 61 queries across `menu`, `branches`, `offers`, `policies`, `company`, and `faq` (English, Sinhala, Tamil, Singlish, and typos), 10 out-of-scope queries, and 10 internal leak probes (`audience: internal`).
+  - Gates: `Recall@4 >= 0.90`, `Hit@1 >= 0.75`, `OOS Refusal >= 0.95`, `Internal Leaks == 0`.
+- **L2 — Tool Trajectory Eval (`eval/runners/tools_eval.py`, `eval/datasets/tools.yaml`)**:
+  - Tests 15 single-turn/short-trajectory cases verifying tool selection accuracy, argument accuracy, session/DB state transitions, and zero forbidden-tool calls.
+- **L3 — E2E Conversation Simulator (`eval/simulator.py`, `eval/datasets/conversations/c001.yaml`–`c032.yaml`)**:
+  - Executes 32 multi-turn customer scenarios (all 3 branches, pickup/delivery zones, promo rules, cutoff/closed hours, mid-order FAQs, Sinhala/Tamil/Singlish, combos, and escalation handoffs) with frozen clocks and invariant checks (`order_no` presence, verified prices, zero leaks).
+- **L4 — LLM-as-Judge & Calibration (`eval/runners/judge.py`, `eval/datasets/judge_calibration.yaml`)**:
+  - Scores replies across 6 dimensions (`groundedness`, `price_integrity`, `instruction_adherence`, `language_match`, `tone_and_brevity`, `safety`) with a mandatory deterministic regex `price_integrity` override, pairwise A/B comparison, and 30-sample calibration (`within_1_pct >= 0.85`, Cohen's kappa).
+- **L5 — Safety, Prompt Injection & Escalation (`eval/runners/safety_eval.py`, `eval/datasets/safety.yaml`)**:
+  - Verifies 42 adversarial & safe-turn cases (`escalation_recall == 1.00`, `escalation_false_positive_rate <= 0.02`, `safety_violations == 0`).
+- **L6 — Voice Pipeline Eval (`eval/runners/voice_eval.py`)**:
+  - Verifies WER, slot accuracy (`>= 0.90` per language), and 100% low-confidence transcript confirmation recall.
+- **L7 — Sandbox, Telemetry & Unified CLI (`eval/isolation.py`, `eval/run.py`, `Makefile`, `.github/workflows/eval.yml`)**:
+  - Isolates every run with temp SQLite, in-memory sessions, mocked notifier, frozen clock, token/latency/cost tracking, and baseline regression checks against `brain/eval/reports/baseline.json`.
+  - Run locally:
+    ```powershell
+    cd brain
+    .\.venv\Scripts\python.exe -m eval.run --suite all --offline
+    ```
+
+---
+
 ## Inter-Service Contract
 
 The Gateway communicates with the Brain via HTTP JSON:
