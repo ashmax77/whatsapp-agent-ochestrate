@@ -51,3 +51,7 @@ plan.md
 *.jpg
 
 *.ipynb
+
+# Evaluation ad-hoc reports (keep baseline.json tracked)
+brain/eval/reports/*
+!brain/eval/reports/baseline.json
