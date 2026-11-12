@@ -215,12 +215,20 @@ def _run_one_scenario(
                 transcript.append({"role": "assistant", "content": "\n".join(r for r in step_replies if r)})
         else:
             max_turns = int(scenario.get("max_turns", 12))
+            scripted = scenario.get("scripted_turns", [])
             for tidx in range(max_turns):
-                cust_text = _next_customer_utterance(
-                    scenario.get("persona", "Customer"),
-                    scenario.get("goal", "Order pizza"),
-                    transcript,
-                )
+                try:
+                    cust_text = _next_customer_utterance(
+                        scenario.get("persona", "Customer"),
+                        scenario.get("goal", "Order pizza"),
+                        transcript,
+                    )
+                except Exception as exc:
+                    # Fallback to pre-scripted user turn if simulator LLM hits quota or connection drop
+                    if tidx < len(scripted):
+                        cust_text = scripted[tidx].get("user", "")
+                    else:
+                        cust_text = ""
                 if not cust_text or "[SIM_DONE]" in cust_text:
                     break
                 transcript.append({"role": "user", "content": cust_text})
