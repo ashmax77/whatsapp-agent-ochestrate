@@ -15,11 +15,14 @@ from app.schemas import IncomingMessage
 from app.state.session import get_session_store
 from app.voice.audio import (
     AudioLimitError,
+    _is_16k_mono_wav,
     convert_to_wav_16k,
     ephemeral_wav_file,
+    find_ffmpeg,
     validate_and_decode_audio,
 )
-from app.voice.stt import TranscriptionResult, stt_service
+from app.voice.stt import TranscriptionResult, _load_audio_input, stt_service
+from app.voice.tts import _convert_to_ogg_opus
 from eval.runners.voice_eval import run_voice_eval
 
 
@@ -334,6 +337,57 @@ class TestPhase6Voice(unittest.TestCase):
         for lang in ("en", "mixed", "si", "ta"):
             self.assertIn(lang, report["by_language"])
             self.assertEqual(report["by_language"][lang]["slot_accuracy"], 1.0)
+
+    def test_real_ffmpeg_ogg_opus_roundtrip_and_numpy_wav_load(self):
+        ffmpeg_exe = find_ffmpeg()
+        self.assertIsNotNone(ffmpeg_exe, "ffmpeg or imageio-ffmpeg must be available")
+
+        # 1. Start from a 44.1kHz WAV and encode to WhatsApp OGG/Opus
+        src_wav = base64.b64decode(_make_wav_b64(duration_s=0.6, sample_rate=44100))
+        ogg_bytes, mime = _convert_to_ogg_opus(src_wav, in_ext=".wav")
+        self.assertEqual(mime, "audio/ogg; codecs=opus")
+        self.assertTrue(ogg_bytes.startswith(b"OggS"), "Expected real OGG/Opus container bytes")
+
+        # 2. Decode OGG/Opus back to 16 kHz mono 16-bit PCM WAV via ffmpeg
+        wav_bytes, dur = convert_to_wav_16k(ogg_bytes, mime="audio/ogg; codecs=opus")
+        self.assertTrue(_is_16k_mono_wav(wav_bytes))
+        self.assertGreater(dur, 0.3)
+
+        # 3. Verify _load_audio_input yields float32 numpy array directly (bypassing PyAV)
+        b64_ogg = base64.b64encode(ogg_bytes).decode("ascii")
+        with ephemeral_wav_file(b64_ogg, mime="audio/ogg; codecs=opus") as (wav_path, _):
+            arr = _load_audio_input(wav_path)
+            import numpy as np
+
+            self.assertIsInstance(arr, np.ndarray)
+            self.assertEqual(arr.dtype, np.float32)
+            self.assertGreater(len(arr), 4000)
+
+    def test_faster_whisper_vad_empty_fallback_retries_unfiltered(self):
+        class _Seg:
+            text = "Yes"
+            avg_logprob = -0.2
+            no_speech_prob = 0.05
+
+        class _Info:
+            language = "en"
+            duration = 0.7
+
+        calls = []
+
+        class _FakeModel:
+            def transcribe(self, audio_input, **kwargs):
+                calls.append(kwargs.get("vad_filter"))
+                if kwargs.get("vad_filter"):
+                    raise ValueError("need at least one array to concatenate")
+                return [_Seg()], _Info()
+
+        with patch.object(stt_service, "_get_faster_whisper", return_value=_FakeModel()):
+            res = stt_service.transcribe_b64(_make_wav_b64(0.5), mime="audio/wav", declared_seconds=0.5)
+
+        self.assertEqual(calls, [True, False])
+        self.assertEqual(res.text, "Yes")
+        self.assertEqual(res.provider, "faster_whisper")
 
 
 if __name__ == "__main__":
