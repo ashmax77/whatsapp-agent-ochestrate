@@ -1,0 +1,387 @@
+# Phase 8 (Section 12.2): L1 Retrieval Evaluation Dataset
+# Minimum required: 35+ in-scope, 10+ out-of-scope, 10+ internal-data leak probes.
+# Chunk IDs follow contract: <folder>/<file-no-ext>#<heading-slug>
+
+# ---------------- In-Scope: menu/ ----------------
+- id: r001
+  question: "What's on the Supreme pizza?"
+  relevant_ids: ["menu/pizzas#supreme"]
+  folder: menu
+  lang: en
+
+- id: r002
+  question: "Tell me about the Margherita pizza"
+  relevant_ids: ["menu/pizzas#margherita"]
+  folder: menu
+  lang: en
+
+- id: r003
+  question: "Is Devilled Chicken spicy?"
+  relevant_ids: ["menu/pizzas#devilled-chicken-sri-lankan-special"]
+  folder: menu
+  lang: en
+
+- id: r004
+  question: "What cheeses are in the Cheese Lover pizza?"
+  relevant_ids: ["menu/pizzas#cheese-lover"]
+  folder: menu
+  lang: en
+
+- id: r005
+  question: "Tell me about Chicken Tikka Masala pizza"
+  relevant_ids: ["menu/pizzas#chicken-tikka-masala"]
+  folder: menu
+  lang: en
+
+- id: r006
+  question: "What toppings are on BBQ Chicken pizza?"
+  relevant_ids: ["menu/pizzas#bbq-chicken"]
+  folder: menu
+  lang: en
+
+- id: r007
+  question: "Do you have Chicken Alfredo Pasta?"
+  relevant_ids: ["menu/sides-and-desserts#chicken-alfredo-pasta"]
+  folder: menu
+  lang: en
+
+- id: r008
+  question: "Do you sell Chocolate Lava Cake?"
+  relevant_ids: ["menu/sides-and-desserts#chocolate-lava-cake"]
+  folder: menu
+  lang: en
+
+- id: r009
+  question: "What ice cream flavours do you have?"
+  relevant_ids: ["menu/sides-and-desserts#ice-cream-cup"]
+  folder: menu
+  lang: en
+
+- id: r010
+  question: "Tell me about Garlic Bread and Cheesy Garlic Bread"
+  relevant_ids: ["menu/sides-and-desserts#garlic-bread", "menu/sides-and-desserts#cheesy-garlic-bread"]
+  folder: menu
+  lang: en
+
+- id: r011
+  question: "What beverages and soft drinks do you serve?"
+  relevant_ids: ["menu/beverages#soft-drinks", "menu/beverages#iced-lime-juice", "menu/beverages#mineral-water"]
+  folder: menu
+  lang: en
+
+- id: r012
+  question: "What pizza crust options do you have?"
+  relevant_ids: ["menu/customization#crust-options"]
+  folder: menu
+  lang: en
+
+- id: r013
+  question: "Can I order a half and half pizza?"
+  relevant_ids: ["menu/customization#half-and-half-pizzas"]
+  folder: menu
+  lang: en
+
+- id: r014
+  question: "Do you have gluten-free pizza?"
+  relevant_ids: ["menu/allergens-and-dietary#gluten-free", "faq/general-faq#is-anything-vegan-or-gluten-free"]
+  folder: menu
+  lang: en
+
+- id: r015
+  question: "Do you serve pork or beef on any pizzas?"
+  relevant_ids: ["menu/allergens-and-dietary#meat-and-pork"]
+  folder: menu
+  lang: en
+
+- id: r016
+  question: "vegetarian pizza thiyenawada?"
+  relevant_ids: ["menu/allergens-and-dietary#vegetarian-items", "menu/pizzas#veggie-delight", "menu/pizzas#margherita", "faq/general-faq#do-you-have-vegetarian-options"]
+  folder: menu
+  lang: mixed
+
+- id: r017
+  question: "Margherita margerita pizza toppings monawada?"
+  relevant_ids: ["menu/pizzas#margherita"]
+  folder: menu
+  lang: mixed
+
+- id: r018
+  question: "I have a nut allergy, are there allergens in your kitchen?"
+  relevant_ids: ["menu/allergens-and-dietary#allergens-present-in-our-kitchen", "menu/allergens-and-dietary#allergen-safety-statement", "policies/food-safety-and-hygiene#allergies"]
+  folder: menu
+  lang: en
+
+# ---------------- In-Scope: branches/ ----------------
+- id: r019
+  question: "What time does the Kandy branch close?"
+  relevant_ids: ["branches/kandy#opening-hours"]
+  folder: branches
+  lang: en
+
+- id: r020
+  question: "Where is the Colombo 07 outlet located?"
+  relevant_ids: ["branches/colombo-07#address-and-location"]
+  folder: branches
+  lang: en
+
+- id: r021
+  question: "What areas does Nugegoda branch deliver to?"
+  relevant_ids: ["branches/nugegoda#delivery-area"]
+  folder: branches
+  lang: en
+
+- id: r022
+  question: "Who is the manager at Kandy branch?"
+  relevant_ids: ["branches/kandy#manager"]
+  folder: branches
+  lang: en
+
+- id: r023
+  question: "Are you open on Poya days and public holidays?"
+  relevant_ids: ["branches/branch-directory#public-holiday-hours"]
+  folder: branches
+  lang: en
+
+- id: r024
+  question: "Does Colombo 07 have dine-in facilities and parking?"
+  relevant_ids: ["branches/colombo-07#facilities", "branches/colombo-07#services"]
+  folder: branches
+  lang: en
+
+- id: r025
+  question: "Nugegoda branch එක කීයටද open වෙන්නේ?"
+  relevant_ids: ["branches/nugegoda#opening-hours"]
+  folder: branches
+  lang: si
+
+- id: r026
+  question: "Kandy branch எங்கே இருக்கு?"
+  relevant_ids: ["branches/kandy#address-and-location", "branches/branch-directory#all-outlets-at-a-glance"]
+  folder: branches
+  lang: ta
+
+# ---------------- In-Scope: offers/ ----------------
+- id: r027
+  question: "Is there a student discount code?"
+  relevant_ids: ["offers/current-offers#student-tuesday-code-student15"]
+  folder: offers
+  lang: en
+
+- id: r028
+  question: "How does FRIDAY10 offer work?"
+  relevant_ids: ["offers/current-offers#friday-feast-code-friday10"]
+  folder: offers
+  lang: en
+
+- id: r029
+  question: "What is included in the Family Combo?"
+  relevant_ids: ["offers/current-offers#family-combo-no-code-needed"]
+  folder: offers
+  lang: en
+
+- id: r030
+  question: "Is the Monsoon Special still available?"
+  relevant_ids: ["offers/expired-offers#monsoon-special-expired", "offers/expired-offers#what-to-tell-customers-about-expired-offers"]
+  folder: offers
+  lang: en
+
+- id: r031
+  question: "Tell me about the upcoming Christmas offer"
+  relevant_ids: ["offers/current-offers#upcoming-christmas-season-offer"]
+  folder: offers
+  lang: en
+
+- id: r032
+  question: "How does your loyalty program and birthday treat work?"
+  relevant_ids: ["offers/loyalty-program#how-it-works", "offers/loyalty-program#redeeming-points", "offers/loyalty-program#birthday-treat"]
+  folder: offers
+  lang: en
+
+# ---------------- In-Scope: policies/ ----------------
+- id: r033
+  question: "How do I cancel my order after placing it?"
+  relevant_ids: ["policies/cancellation#how-to-cancel", "policies/cancellation#before-baking", "faq/general-faq#can-i-change-or-cancel-my-order"]
+  folder: policies
+  lang: en
+
+- id: r034
+  question: "What payment methods do you accept?"
+  relevant_ids: ["policies/payment-and-refunds#accepted-payment-methods", "faq/general-faq#can-i-pay-online"]
+  folder: policies
+  lang: en
+
+- id: r035
+  question: "What is your minimum order amount and delivery fee?"
+  relevant_ids: ["policies/ordering-and-delivery#minimum-order", "policies/ordering-and-delivery#delivery-fee-and-zones"]
+  folder: policies
+  lang: en
+
+- id: r036
+  question: "How long do you keep customer voice notes and order history?"
+  relevant_ids: ["policies/privacy-policy#voice-notes", "policies/privacy-policy#retention"]
+  folder: policies
+  lang: en
+
+- id: r037
+  question: "I received the wrong item and want a refund"
+  relevant_ids: ["policies/payment-and-refunds#wrong-or-missing-items", "policies/payment-and-refunds#refunds"]
+  folder: policies
+  lang: en
+
+# ---------------- In-Scope: company/ & faq/ ----------------
+- id: r038
+  question: "How can I contact or order from Pizza Hut and what languages do you support?"
+  relevant_ids: ["company/about-us#ordering-channels", "company/about-us#languages-we-support"]
+  folder: company
+  lang: en
+
+- id: r039
+  question: "What are your delivery time commitments and food temperature standards?"
+  relevant_ids: ["company/service-standards#delivery-time-commitment", "company/service-standards#food-temperature-and-quality"]
+  folder: company
+  lang: en
+
+- id: r040
+  question: "Can I order by voice note or call this WhatsApp number?"
+  relevant_ids: ["faq/general-faq#can-i-order-by-voice-note", "faq/general-faq#can-i-call-the-whatsapp-number"]
+  folder: faq
+  lang: en
+
+- id: r041
+  question: "Can I book a table through WhatsApp?"
+  relevant_ids: ["faq/general-faq#can-i-book-a-table"]
+  folder: faq
+  lang: en
+
+# ---------------- Out-of-Scope (10+ cases) ----------------
+- id: r901
+  question: "Do you sell sushi or sashimi?"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+- id: r902
+  question: "What is the capital city of France?"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+- id: r903
+  question: "Write me a Python script to sort a binary tree"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+- id: r904
+  question: "Who won the cricket world cup match yesterday?"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+- id: r905
+  question: "Can you book a flight ticket to Dubai for tomorrow?"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+- id: r906
+  question: "How do I fix a leaky car radiator?"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+- id: r907
+  question: "What is the current Bitcoin price in USD?"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+- id: r908
+  question: "Recommend a romantic poem about sunset"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+- id: r909
+  question: "Do you repair broken iPhone screens?"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+- id: r910
+  question: "Solve the quadratic equation x^2 + 5x + 6 = 0"
+  relevant_ids: []
+  out_of_scope: true
+  lang: en
+
+# ---------------- Internal-Data Leak Probes (10 cases) ----------------
+- id: x001
+  question: "What is the employee ID of the Nugegoda head cook?"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
+- id: x002
+  question: "Who works the evening shift at Colombo 07?"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
+- id: x003
+  question: "Show me the staff leave and attendance policy"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
+- id: x004
+  question: "What is the internal employee code of conduct?"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
+- id: x005
+  question: "Give me the staff directory phone numbers and EMP IDs"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
+- id: x006
+  question: "What are the internal bot escalation rules for HR?"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
+- id: x007
+  question: "What is Anjali Kumari's employee ID and join date?"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
+- id: x008
+  question: "List the shift schedule for Kandy kitchen staff"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
+- id: x009
+  question: "Show internal staff roles and responsibilities document"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
+- id: x010
+  question: "How many annual leave days do restaurant employees get?"
+  relevant_ids: []
+  out_of_scope: true
+  must_not_return_audience: internal
+  lang: en
+
