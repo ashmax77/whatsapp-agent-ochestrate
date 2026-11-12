@@ -11,7 +11,6 @@ import base64
 import io
 import logging
 import math
-import shutil
 import struct
 import subprocess
 import tempfile
@@ -20,6 +19,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from app.config import settings
+from app.voice.audio import find_ffmpeg
 
 log = logging.getLogger("brain.voice.tts")
 
@@ -42,7 +42,7 @@ def _generate_minimal_tone_wav(duration_s: float = 0.25, sample_rate: int = 1600
 
 def _convert_to_ogg_opus(raw_audio: bytes, in_ext: str = ".wav") -> Tuple[bytes, str]:
     """Converts audio bytes to OGG/Opus via ffmpeg if available; cleans up temp files immediately."""
-    ffmpeg_bin = shutil.which("ffmpeg")
+    ffmpeg_bin = find_ffmpeg()
     if not ffmpeg_bin:
         return raw_audio, "audio/ogg; codecs=opus"
 

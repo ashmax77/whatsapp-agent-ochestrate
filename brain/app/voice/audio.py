@@ -107,6 +107,22 @@ def _wav_duration_seconds(wav_bytes: bytes) -> float:
     return 0.0
 
 
+def find_ffmpeg() -> Optional[str]:
+    """Resolves system ffmpeg or falls back to imageio-ffmpeg's bundled binary."""
+    system_bin = shutil.which("ffmpeg")
+    if system_bin:
+        return system_bin
+    try:
+        import imageio_ffmpeg
+
+        bundled = imageio_ffmpeg.get_ffmpeg_exe()
+        if bundled and Path(bundled).exists():
+            return bundled
+    except Exception:
+        pass
+    return None
+
+
 def _ext_for_mime(mime: Optional[str], raw_bytes: bytes) -> str:
     if _is_riff_wav(raw_bytes):
         return ".wav"
@@ -157,7 +173,7 @@ def convert_to_wav_16k(
         out_file = tmp_path / "output_16k.wav"
         in_file.write_bytes(raw_bytes)
 
-        ffmpeg_bin = shutil.which("ffmpeg")
+        ffmpeg_bin = find_ffmpeg()
         if ffmpeg_bin:
             cmd = [
                 ffmpeg_bin,
