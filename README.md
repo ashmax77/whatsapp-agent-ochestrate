@@ -15,8 +15,8 @@ An intelligent, multi-agent WhatsApp assistant for Pizza Hut (operating across m
 | **Phase 5** | Central Orchestrator Agent, State Machine & Redis Sessions | ✅ Completed |
 | **Phase 6** | Voice Notes (Audio Conversion, Faster-Whisper STT, Confirmation Rule & TTS) | ✅ Completed |
 | **Phase 7** | Escalation Agent, Post-Order Tracking & Staff Notifications | ✅ Completed |
-| **Phase 8** | Multi-Layer Evaluation Pipeline (L0–L5) | ⏳ Next |
-| **Phase 9** | Production Hardening & Cloud Deployment | 🔜 Planned |
+| **Phase 8** | Multi-Layer Evaluation Pipeline (L1–L7, 32 Scenarios, Baseline CI) | ✅ Completed |
+| **Phase 9** | Production Hardening, Observability & Cloud Deployment | ⏳ Next |
 
 ---
 
@@ -31,115 +31,134 @@ The system is decoupled into two primary services:
 
 ```
 pizza-agent/
+├── .github/
+│   └── workflows/
+│       └── eval.yml                    # Automated offline eval & KB validation CI workflow
+├── Makefile                            # Unified targets (make test, make eval, make validate-kb)
 ├── .gitignore
-├── docker-compose.yml              # Multi-container orchestration (gateway, brain, redis, qdrant)
-├── docker-compose.dev.yml          # Local development stack (Redis 7 on port 6379)
-├── plan.md                         # Comprehensive phase-by-phase implementation plan
-├── README.md                       # Project documentation
-├── architecture.jpg                # Architecture diagram
+├── docker-compose.yml                  # Multi-container orchestration (gateway, brain, redis, qdrant)
+├── docker-compose.dev.yml              # Local development stack (Redis 7 on port 6379)
+├── plan.md                             # Comprehensive phase-by-phase implementation plan
+├── README.md                           # Project documentation
+├── architecture.jpg                    # Architecture diagram
 │
-├── gateway/                        # Node.js: Baileys WhatsApp I/O service
-│   ├── auth_state/                 # Baileys session credentials (git-ignored)
+├── gateway/                            # Node.js: Baileys WhatsApp I/O service
+│   ├── auth_state/                     # Baileys session credentials (git-ignored)
 │   ├── src/
-│   │   ├── index.js                # Baileys socket, QR login, event handlers
-│   │   ├── config.js               # Gateway environment configuration
-│   │   ├── brainClient.js          # Resilient HTTP client communicating with Brain (/message)
-│   │   └── media.js                # (Phase 6) Voice note download/send helpers
+│   │   ├── index.js                    # Baileys socket, QR login, event handlers
+│   │   ├── config.js                   # Gateway environment configuration
+│   │   ├── brainClient.js              # Resilient HTTP client communicating with Brain (/message)
+│   │   └── media.js                    # (Phase 6) Voice note download/send helpers
 │   ├── package.json
 │   ├── package-lock.json
 │   └── .env
 │
-└── brain/                          # Python: FastAPI AI backend & multi-agent system
+└── brain/                              # Python: FastAPI AI backend & multi-agent system
     ├── app/
-    │   ├── main.py                 # Async FastAPI entrypoint (/health, /message) routed through orchestrator
-    │   ├── config.py               # Pydantic settings (LLM, Redis, TTLs, rate limits, RAG, thresholds)
-    │   ├── schemas.py              # Request/response models (IncomingMessage, BrainReply, BrainReplyMeta)
+    │   ├── main.py                     # Async FastAPI entrypoint (/health, /message) routed through orchestrator
+    │   ├── config.py                   # Pydantic settings (LLM, Redis, TTLs, rate limits, RAG, thresholds)
+    │   ├── schemas.py                  # Request/response models (IncomingMessage, BrainReply, BrainReplyMeta)
     │   ├── llm/
-    │   │   └── client.py           # Unified LLM completion & embedding facade (retries, timeouts)
+    │   │   └── client.py               # Unified LLM completion & embedding facade (retries, timeouts)
     │   ├── services/
-    │   │   ├── clock.py            # Injectable Asia/Colombo clock for opening-hours & date tests
-    │   │   ├── menu_repo.py        # Structured menu item, option, crust, topping & combo repo
-    │   │   ├── branch_repo.py      # Haversine pin & fuzzy alias branch/zone resolver + hours check
-    │   │   ├── promo_repo.py       # Deterministic promo validator (days, dates, branches, min spend)
-    │   │   ├── pricing.py          # Pure integer-LKR pricing engine & WhatsApp receipt formatter
-    │   │   ├── language.py         # Script-based language detector (Sinhala, Tamil, English/Singlish)
-│     │   │   ├── action_guard.py     # Deterministic action-claim & order-number verification guard
-    │   │   ├── post_processor.py   # Reply price verification & hallucination defense
-    │   │   └── notifier.py         # (Phase 7) Per-branch & Area Manager WhatsApp notification service
+    │   │   ├── clock.py                # Injectable Asia/Colombo clock for opening-hours & date tests
+    │   │   ├── menu_repo.py            # Structured menu item, option, crust, topping & combo repo
+    │   │   ├── branch_repo.py          # Haversine pin & fuzzy alias branch/zone resolver + hours check
+    │   │   ├── promo_repo.py           # Deterministic promo validator (days, dates, branches, min spend)
+    │   │   ├── pricing.py              # Pure integer-LKR pricing engine & WhatsApp receipt formatter
+    │   │   ├── language.py             # Script-based language detector (Sinhala, Tamil, English/Singlish)
+    │   │   ├── action_guard.py         # Deterministic action-claim & order-number verification guard
+    │   │   ├── post_processor.py       # Reply price verification & hallucination defense
+    │   │   └── notifier.py             # (Phase 7) Per-branch & Area Manager WhatsApp notification service
     │   ├── state/
-    │   │   ├── session.py          # Per-customer Session, CartLine, summary_hash & singleton store factory
-    │   │   ├── session_store.py    # Abstract async SessionStore base class
-    │   │   ├── memory_store.py     # In-memory thread/asyncio-safe store with lock, dedupe & rate-limiting
-    │   │   └── redis_store.py      # Redis session store with JSON serialization, TTL & memory fallback
-    │   ├── agents/                 # Multi-agent orchestrator & specialists
-    │   │   ├── base.py             # BaseAgent interface
+    │   │   ├── session.py              # Per-customer Session, CartLine, summary_hash & singleton store factory
+    │   │   ├── session_store.py        # Abstract async SessionStore base class
+    │   │   ├── memory_store.py         # In-memory thread/asyncio-safe store with lock, dedupe & rate-limiting
+    │   │   └── redis_store.py          # Redis session store with JSON serialization, TTL & memory fallback
+    │   ├── agents/                     # Multi-agent orchestrator & specialists
+    │   │   ├── base.py                 # BaseAgent interface
     │   │   ├── prompts/
-    │   │   │   └── orchestrator_v1.md # Versioned orchestrator prompt (pricing integrity, confirmation rules)
-    │   │   ├── orchestrator.py     # Central orchestrator (session locking, dedupe, stage-aware tool loop)
-    │   │   ├── knowledge_agent.py  # Commercial RAG agent (rewriting, deterministic routing, citations)
-    │   │   ├── menu_agent.py       # Menu inquiries, pricing, customization
-    │   │   ├── order_agent.py      # Deterministic agent owning cart, fulfilment, summary & place_order
-    │   │   ├── delivery_agent.py   # Deterministic agent owning branch.list, set_address & quote
-    │   │   ├── promo_agent.py      # Deterministic agent owning promo.apply & promo.remove
-    │   │   ├── escalation_agent.py # Complaint detection & staff handoff
-    │   │   └── post_order_agent.py # Order status tracking
+    │   │   │   └── orchestrator_v1.md  # Versioned orchestrator prompt (pricing integrity, confirmation rules)
+    │   │   ├── orchestrator.py         # Central orchestrator (session locking, dedupe, stage-aware tool loop)
+    │   │   ├── knowledge_agent.py      # Commercial RAG agent (rewriting, deterministic routing, citations)
+    │   │   ├── menu_agent.py           # Menu inquiries, pricing, customization
+    │   │   ├── order_agent.py          # Deterministic agent owning cart, fulfilment, summary & place_order
+    │   │   ├── delivery_agent.py       # Deterministic agent owning branch.list, set_address & quote
+    │   │   ├── promo_agent.py          # Deterministic agent owning promo.apply & promo.remove
+    │   │   ├── escalation_agent.py     # Complaint detection & staff handoff
+    │   │   └── post_order_agent.py     # Order status tracking
     │   ├── tools/
-    │   │   ├── registry.py         # Tool registry with Pydantic schemas & state-machine stage guards
-    │   │   ├── kb_tools.py         # Knowledge & menu tools (kb.ask, kb.search, menu.get_item, etc.)
-    │   │   ├── branch_tools.py     # Branch listing tool (branch.list)
-    │   │   ├── cart_tools.py       # Cart CRUD & combo validation (cart.add_item, add_combo, etc.)
-    │   │   ├── delivery_tools.py   # Address/pin resolution & delivery quote (delivery.set_address, quote)
-    │   │   ├── promo_tools.py      # Promo code application & removal (promo.apply, promo.remove)
-    │   │   ├── order_tools.py      # Fulfilment, pickup, summary & two-step place_order tools
-    │   │   └── cli.py              # Zero-LLM CLI tool harness (python -m app.tools.cli --demo)
-    │   ├── rag/                    # Commercialized Hybrid RAG Pipeline
-    │   │   ├── text.py             # Tokenizer, stopword removal, and word stemmer
-    │   │   ├── kb_loader.py        # Safe loader, text cleaner, smart header chunker & summary tables
-    │   │   ├── validate_kb.py      # Front-matter, PII, pre-flight & menu/offer/branch consistency validator
-    │   │   ├── embeddings.py       # API & deterministic local embedding service with backend tracking
-    │   │   ├── ingest.py           # Zero-downtime blue/green index builder, manifest swap & pruning
-    │   │   └── retriever.py        # Dynamic manifest hot-swap, RBAC, hybrid BM25 + vector & reranker
-    │   ├── voice/                  # (Phase 6) Audio conversion, STT & TTS (audio.py, stt.py, tts.py)
-    │   └── db/                     # SQLite / PostgreSQL persistence
-    │       ├── models.py           # Customer, Order, OrderItem, Handoff, MessageLog models
-    │       └── order_repo.py       # SQLite repository with PH-YYYYMMDD-NNNN order numbering
+    │   │   ├── registry.py             # Tool registry with Pydantic schemas & state-machine stage guards
+    │   │   ├── kb_tools.py             # Knowledge & menu tools (kb.ask, kb.search, menu.get_item, etc.)
+    │   │   ├── branch_tools.py         # Branch listing tool (branch.list)
+    │   │   ├── cart_tools.py           # Cart CRUD & combo validation (cart.add_item, add_combo, etc.)
+    │   │   ├── delivery_tools.py       # Address/pin resolution & delivery quote (delivery.set_address, quote)
+    │   │   ├── promo_tools.py          # Promo code application & removal (promo.apply, promo.remove)
+    │   │   ├── order_tools.py          # Fulfilment, pickup, summary & two-step place_order tools
+    │   │   └── cli.py                  # Zero-LLM CLI tool harness (python -m app.tools.cli --demo)
+    │   ├── rag/                        # Commercialized Hybrid RAG Pipeline
+    │   │   ├── text.py                 # Tokenizer, stopword removal, and word stemmer
+    │   │   ├── kb_loader.py            # Safe loader, text cleaner, smart header chunker & summary tables
+    │   │   ├── validate_kb.py          # Front-matter, PII, pre-flight & menu/offer/branch consistency validator
+    │   │   ├── embeddings.py           # API & deterministic local embedding service with backend tracking
+    │   │   ├── ingest.py               # Zero-downtime blue/green index builder, manifest swap & pruning
+    │   │   └── retriever.py            # Dynamic manifest hot-swap, RBAC, hybrid BM25 + vector & reranker
+    │   ├── voice/                      # (Phase 6) Audio conversion, STT & TTS (audio.py, stt.py, tts.py)
+    │   └── db/                         # SQLite / PostgreSQL persistence
+    │       ├── models.py               # Customer, Order, OrderItem, Handoff, MessageLog models
+    │       └── order_repo.py           # SQLite repository with PH-YYYYMMDD-NNNN order numbering
     ├── data/
-    │   ├── branches.json           # Outlet coordinates, hours, cutoffs, delivery zones & area aliases
-    │   ├── promos.json             # Structured promo rules (FRIDAY10, STUDENT15, expired offers)
-    │   ├── menu.json               # Structured source of truth for LKR prices, sizes & combos (git-ignored)
-    │   ├── chroma/                 # Versioned blue/green vector builds & index_info.json (git-ignored)
-    │   └── knowledge/              # Curated multi-folder knowledge base (29 Markdown files)
-    │       ├── README.md           # Knowledge base authoring rules
-    │       ├── branches/           # Branch directory, Colombo 07, Nugegoda, Kandy
-    │       ├── company/            # About Us, service standards
-    │       ├── faq/                # General customer FAQs
-    │       ├── internal/           # Staff-only documents (NEVER indexed for customers)
+    │   ├── branches.json               # Outlet coordinates, hours, cutoffs, delivery zones & area aliases
+    │   ├── promos.json                 # Structured promo rules (FRIDAY10, STUDENT15, expired offers)
+    │   ├── menu.json                   # Structured source of truth for LKR prices, sizes & combos (git-ignored)
+    │   ├── chroma/                     # Versioned blue/green vector builds & index_info.json (git-ignored)
+    │   └── knowledge/                  # Curated multi-folder knowledge base (29 Markdown files)
+    │       ├── README.md               # Knowledge base authoring rules
+    │       ├── branches/               # Branch directory, Colombo 07, Nugegoda, Kandy
+    │       ├── company/                # About Us, service standards
+    │       ├── faq/                    # General customer FAQs
+    │       ├── internal/               # Staff-only documents (NEVER indexed for customers)
     │       │   ├── README.md
-    │       │   ├── employees/      # Roles, shift schedules, staff directory
-    │       │   └── hr/             # Escalation rules, code of conduct, leave policies
-    │       ├── menu/               # Pizzas, sides, desserts, beverages, customization, allergens
-    │       ├── offers/             # Current offers, expired offers, loyalty program
-    │       └── policies/           # Ordering & delivery, payment & refunds, cancellation, food safety
-    ├── eval/
+    │       │   ├── employees/          # Roles, shift schedules, staff directory
+    │       │   └── hr/                 # Escalation rules, code of conduct, leave policies
+    │       ├── menu/                   # Pizzas, sides, desserts, beverages, customization, allergens
+    │       ├── offers/                 # Current offers, expired offers, loyalty program
+    │       └── policies/               # Ordering & delivery, payment & refunds, cancellation, food safety
+    ├── eval/                           # (Phase 8) Comprehensive 7-Layer Evaluation Framework
+    │   ├── isolation.py                # L7 Sandbox isolation (temp SQLite, in-memory sessions, mock notifier, frozen clock)
+    │   ├── run.py                      # Unified CLI runner (--suite, --offline, --repeats, regression baseline checks)
+    │   ├── simulator.py                # L3 E2E conversation simulator with invariant verification
     │   ├── datasets/
-    │   │   ├── tools.yaml          # Deterministic tool-trajectory & state-machine evaluation cases
-    │   │   └── voice.yaml          # 32-case multilingual voice evaluation dataset (EN, SI, TA, mixed)
-    │   └── runners/
-    │       └── voice_eval.py       # WER, slot accuracy & transcript confirmation rule evaluator
+    │   │   ├── retrieval.yaml          # 61-case RAG retrieval dataset (EN/SI/TA/Singlish + 10 out-of-scope + 10 leak probes)
+    │   │   ├── tools.yaml              # 15 tool-trajectory & state-machine evaluation cases
+    │   │   ├── judge_calibration.yaml  # 30-case human-labeled calibration dataset for LLM-as-Judge
+    │   │   ├── safety.yaml             # 42-case safety, prompt-injection, order-abuse & escalation suite
+    │   │   ├── voice.yaml              # 32-case multilingual voice evaluation dataset (EN, SI, TA, mixed)
+    │   │   └── conversations/          # 32 end-to-end multi-turn customer conversation scenario YAMLs (c001–c032)
+    │   ├── runners/
+    │   │   ├── retrieval_eval.py       # L1 retrieval evaluator (Recall@4, Hit@1, MRR, OOS refusal, internal leak check)
+    │   │   ├── tools_eval.py           # L2 tool selection, argument accuracy & state-match evaluator
+    │   │   ├── judge.py                # L4 LLM-as-Judge, deterministic price integrity override & pairwise A/B comparator
+    │   │   ├── safety_eval.py          # L5 safety violation, escalation recall (1.00) & false-positive rate (<=0.02) evaluator
+    │   │   └── voice_eval.py           # L6 voice WER, multilingual slot accuracy & confirmation rule evaluator
+    │   └── reports/
+    │       └── baseline.json           # Tracked evaluation baseline for regression prevention in CI
     ├── tests/
-    │   ├── helpers.py              # Hermetic TempIndex & OfflineLLM test fixtures
-    │   ├── test_api.py             # API schema, session state & /message route tests
-    │   ├── test_kb_loader.py       # Slug rules, text cleaning, safe loading & summary chunk tests
-    │   ├── test_ingest.py          # Blue/green builds, atomic manifest, pruning & rollback tests
-    │   ├── test_menu_repo.py       # Structured menu item, combo & availability tests
-    │   ├── test_rag_retrieval.py   # Hybrid search, leak probes, RBAC, manifest hot-swap & BM25 tests
-    │   ├── test_rag_exam.py        # Automated Golden Set Exam (accuracy, memory, routing, leak guards)
-    │   ├── test_phase4_orders.py   # Pricing, branch/zone, hours, promos, state-machine & DB order tests
+    │   ├── helpers.py                  # Hermetic TempIndex & OfflineLLM test fixtures
+    │   ├── test_api.py                 # API schema, session state & /message route tests
+    │   ├── test_kb_loader.py           # Slug rules, text cleaning, safe loading & summary chunk tests
+    │   ├── test_ingest.py              # Blue/green builds, atomic manifest, pruning & rollback tests
+    │   ├── test_menu_repo.py           # Structured menu item, combo & availability tests
+    │   ├── test_rag_retrieval.py       # Hybrid search, leak probes, RBAC, manifest hot-swap & BM25 tests
+    │   ├── test_rag_exam.py            # Automated Golden Set Exam (accuracy, memory, routing, leak guards)
+    │   ├── test_phase4_orders.py       # Pricing, branch/zone, hours, promos, state-machine & DB order tests
     │   ├── test_phase5_orchestrator.py # Session dedupe, rate limits, stage filtering & prompt safety tests
-    │   ├── test_phase6_voice.py    # Audio limits, immediate deletion, STT, confirmation rule & TTS tests
-    │   └── test_phase7_escalation_and_staff.py # Escalation rules sync, handoff silence, notifier & branch staff commands
-    ├── start.bat                   # Windows CMD startup script
-    ├── start.ps1                   # Windows PowerShell startup script
+    │   ├── test_orchestrator_action_guard.py # Action-claim verification, fake order-no blocker & forced tool call tests
+    │   ├── test_phase6_voice.py        # Audio limits, immediate deletion, STT, confirmation rule & TTS tests
+    │   ├── test_phase7_escalation_and_staff.py # Escalation rules sync, handoff silence, notifier & branch staff commands
+    │   └── test_phase8_eval.py         # L1–L7 evaluation pipeline, sandbox isolation & baseline regression tests
+    ├── start.bat                       # Windows CMD startup script
+    ├── start.ps1                       # Windows PowerShell startup script
     ├── requirements.txt
     ├── pyproject.toml
     ├── uv.lock
@@ -255,28 +274,52 @@ Phase 5 introduces the central conversational orchestrator that glues together n
 
 ## Automated Evaluation Pipeline & Quality Gates (Phase 8)
 
-The system includes a 7-layer evaluation framework (`brain/eval/`) designed for both deterministic offline CI (`--offline`) and live LLM regression checks:
+The system includes an enterprise-grade 7-layer evaluation framework (`brain/eval/`) supporting both hermetic offline CI (`--offline`) and live LLM regression runs:
 
-- **L1 — Retrieval Eval (`eval/runners/retrieval_eval.py`, `eval/datasets/retrieval.yaml`)**:
-  - Evaluates 61 queries across `menu`, `branches`, `offers`, `policies`, `company`, and `faq` (English, Sinhala, Tamil, Singlish, and typos), 10 out-of-scope queries, and 10 internal leak probes (`audience: internal`).
-  - Gates: `Recall@4 >= 0.90`, `Hit@1 >= 0.75`, `OOS Refusal >= 0.95`, `Internal Leaks == 0`.
-- **L2 — Tool Trajectory Eval (`eval/runners/tools_eval.py`, `eval/datasets/tools.yaml`)**:
-  - Tests 15 single-turn/short-trajectory cases verifying tool selection accuracy, argument accuracy, session/DB state transitions, and zero forbidden-tool calls.
-- **L3 — E2E Conversation Simulator (`eval/simulator.py`, `eval/datasets/conversations/c001.yaml`–`c032.yaml`)**:
-  - Executes 32 multi-turn customer scenarios (all 3 branches, pickup/delivery zones, promo rules, cutoff/closed hours, mid-order FAQs, Sinhala/Tamil/Singlish, combos, and escalation handoffs) with frozen clocks and invariant checks (`order_no` presence, verified prices, zero leaks).
-- **L4 — LLM-as-Judge & Calibration (`eval/runners/judge.py`, `eval/datasets/judge_calibration.yaml`)**:
-  - Scores replies across 6 dimensions (`groundedness`, `price_integrity`, `instruction_adherence`, `language_match`, `tone_and_brevity`, `safety`) with a mandatory deterministic regex `price_integrity` override, pairwise A/B comparison, and 30-sample calibration (`within_1_pct >= 0.85`, Cohen's kappa).
-- **L5 — Safety, Prompt Injection & Escalation (`eval/runners/safety_eval.py`, `eval/datasets/safety.yaml`)**:
-  - Verifies 42 adversarial & safe-turn cases (`escalation_recall == 1.00`, `escalation_false_positive_rate <= 0.02`, `safety_violations == 0`).
-- **L6 — Voice Pipeline Eval (`eval/runners/voice_eval.py`)**:
-  - Verifies WER, slot accuracy (`>= 0.90` per language), and 100% low-confidence transcript confirmation recall.
-- **L7 — Sandbox, Telemetry & Unified CLI (`eval/isolation.py`, `eval/run.py`, `Makefile`, `.github/workflows/eval.yml`)**:
-  - Isolates every run with temp SQLite, in-memory sessions, mocked notifier, frozen clock, token/latency/cost tracking, and baseline regression checks against `brain/eval/reports/baseline.json`.
-  - Run locally:
-    ```powershell
-    cd brain
-    .\.venv\Scripts\python.exe -m eval.run --suite all --offline
-    ```
+### Evaluation Layers & Responsibilities
+
+| Layer | Suite | Target / Responsibility | Quality Gate | Primary Files |
+|---|---|---|---|---|
+| **L1** | `retrieval` | 61 queries (41 menu/branch/offer/policy in EN/SI/TA/Singlish, 10 out-of-scope, 10 internal leak probes) | `Recall@4 >= 0.90`<br>`Hit@1 >= 0.75`<br>`OOS Refusal >= 0.95`<br>`Internal Leaks == 0` | `eval/datasets/retrieval.yaml`<br>`eval/runners/retrieval_eval.py` |
+| **L2** | `tools` | 15 single-turn & short trajectories (cart mutations, branch resolution, promo validation, ice cream zone rules, cutoff hours) | `Tool selection accuracy >= 0.92`<br>`Argument accuracy >= 0.92`<br>`Forbidden tool calls == 0` | `eval/datasets/tools.yaml`<br>`eval/runners/tools_eval.py` |
+| **L3** | `conversation` | 32 end-to-end multi-turn customer scenarios across all branches, pickup/delivery, promo edge cases, mind changes, and language variants | `Pass@3 >= 0.90`<br>`Zero invariant violations`<br>(no unbacked order numbers or prices) | `eval/datasets/conversations/*.yaml`<br>`eval/simulator.py` |
+| **L4** | `judge` | LLM-as-Judge scoring 6 dimensions (groundedness, price integrity, instruction adherence, language match, tone/brevity, safety) | `Mean score >= 4.2 / 5.0`<br>`Calibration within-1 >= 0.85`<br>`Deterministic price override` | `eval/datasets/judge_calibration.yaml`<br>`eval/runners/judge.py` |
+| **L5** | `safety` | 42 adversarial cases (prompt injection, PII leak probes, order quantity abuse, fake discounts, severe allergy & complaint handoffs) | `Escalation recall == 1.00`<br>`False positive rate <= 0.02`<br>`Safety violations == 0` | `eval/datasets/safety.yaml`<br>`eval/runners/safety_eval.py` |
+| **L6** | `voice` | Multilingual STT WER, slot recognition across items/quantities/addresses, and 100% low-confidence confirmation trigger | `Slot accuracy >= 0.90 / lang`<br>`Low-conf recall == 1.00` | `eval/datasets/voice.yaml`<br>`eval/runners/voice_eval.py` |
+| **L7** | `isolation` | Hermetic sandbox (temporary SQLite DB, in-memory sessions, mock notifier, frozen clock) + latency/token/cost telemetry | `p50 <= 4000 ms`<br>`p95 <= 10000 ms`<br>`Zero regression > 3% from baseline` | `eval/isolation.py`<br>`eval/run.py`<br>`eval/reports/baseline.json` |
+
+### Running the Evaluation Suite
+
+You can execute the entire suite or individual layers using Python or the root `Makefile`:
+
+```powershell
+cd brain
+
+# 1. Run the entire offline evaluation suite against baseline.json
+$env:HF_HUB_OFFLINE="1"
+.\.venv\Scripts\python.exe -m eval.run --suite all --offline
+
+# 2. Run specific individual evaluation suites
+.\.venv\Scripts\python.exe -m eval.run --suite retrieval --offline
+.\.venv\Scripts\python.exe -m eval.run --suite tools --offline
+.\.venv\Scripts\python.exe -m eval.run --suite conversation --offline
+.\.venv\Scripts\python.exe -m eval.run --suite judge --offline
+.\.venv\Scripts\python.exe -m eval.run --suite safety --offline
+.\.venv\Scripts\python.exe -m eval.run --suite voice --offline
+
+# 3. Run live online LLM evaluations (requires active API key)
+.\.venv\Scripts\python.exe -m eval.run --suite all --repeats 3
+```
+
+### Baseline Regression Protection (`baseline.json`)
+Every evaluation run is automatically checked against [brain/eval/reports/baseline.json](file:///f:/Noob%20Dev/CAAEP/WhatsApp-agent/brain/eval/reports/baseline.json):
+- If any accuracy or recall metric drops by more than **3.0%**, the runner flags a regression and exits with code `1`.
+- Any non-zero count in zero-tolerance gates (`internal_leaks`, `forbidden_tool_violations`, `invariant_violations`, `safety_violations`) causes immediate failure.
+- Generated artifacts in `brain/eval/reports/<timestamp>/`:
+  - `summary.md`: Scoreboard, quality gates, and telemetry summary.
+  - `results.json`: Full structured JSON metrics.
+  - `failures.md`: Detailed failure log and baseline diffs.
+  - `costs.json`: Turn latencies (p50/p95), tokens, and estimated USD cost.
 
 ---
 
@@ -378,25 +421,60 @@ Scan the terminal QR code using WhatsApp (**Linked Devices > Link a Device**) to
 
 ---
 
-### 3. Running Automated Tests, CLI Tool Harness & Golden Set Evaluation
+### 3. Running Automated Tests, Evaluation Pipeline & Makefile Targets
 
-Run the full 60-test suite (unit tests, Phase 4 order/pricing/branch/promo tests, Phase 5 orchestrator/session tests, blue/green ingestion tests, RBAC leak probes, and the Golden Set RAG Exam) inside `brain/`:
+The workspace provides both granular Python test runners and unified `Makefile` targets:
 
+#### A. Unified Makefile Commands (Root Directory)
+```bash
+# Validate knowledge base front-matter, chunk word counts, and zero PII leaks
+make validate-kb
+
+# Run all unit and integration tests across tests/
+make test
+
+# Run the complete offline evaluation suite (all 6 layers) against baseline.json
+make eval
+
+# Run a specific evaluation layer (e.g. retrieval, tools, conversation, judge, safety, voice)
+make eval SUITE=retrieval
+make eval SUITE=tools
+make eval SUITE=conversation
+make eval SUITE=judge
+make eval SUITE=safety
+make eval SUITE=voice
+
+# Rebuild the zero-downtime blue/green vector index
+make ingest
+```
+
+#### B. Direct Python Execution (inside `brain/`)
 ```powershell
 cd brain
+$env:HF_HUB_OFFLINE="1"
 
-# Run the zero-LLM deterministic order flow CLI demo
-.\.venv\Scripts\python.exe -m app.tools.cli --demo
+# 1. Run the Phase 8 evaluation pipeline integration test suite
+.\.venv\Scripts\python.exe -m unittest tests/test_phase8_eval.py -v
 
-# Run all 60 unit & integration tests
+# 2. Run the full unit & integration test suite (Phase 4, 5, 6, 7 & 8)
 .\.venv\Scripts\python.exe -m unittest discover tests
 
-# Run Phase 5 orchestrator, session deduplication & state-machine filtering tests
-.\.venv\Scripts\python.exe -m unittest tests/test_phase5_orchestrator.py
+# 3. Run the zero-LLM deterministic order flow CLI demo
+.\.venv\Scripts\python.exe -m app.tools.cli --demo
 
-# Run Phase 4 deterministic order & pricing engine tests
-.\.venv\Scripts\python.exe -m unittest tests/test_phase4_orders.py
+# 4. Run Phase 8 unified evaluation runner
+.\.venv\Scripts\python.exe -m eval.run --suite all --offline
+```
 
-# Run only the Golden Set RAG Exam (set RAG_EXAM_LIVE=1 to test against the live LLM)
-.\.venv\Scripts\python.exe -m unittest tests/test_rag_exam.py
+#### C. Running Evaluations While Agents Are Online (Live Server Mode)
+All evaluation runs use `eval_sandbox()`, which provisions:
+- An isolated in-memory session store (leaving active WhatsApp conversations untouched)
+- A temporary SQLite database (leaving `orders.db` clean)
+- A mock notifier (preventing real WhatsApp notifications to branch staff)
+- A frozen `Asia/Colombo` clock for deterministic cutoff and opening-hours verification
+
+Therefore, you can run evaluations **at any time without stopping the running FastAPI server or Baileys Gateway**. To run evaluations against live LLM models instead of offline heuristics, simply omit the `--offline` flag:
+```powershell
+cd brain
+.\.venv\Scripts\python.exe -m eval.run --suite all --repeats 3
 ```
