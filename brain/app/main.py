@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import logging
 from pathlib import Path
@@ -29,13 +30,23 @@ def health():
     return {"status": "ok"}
 
 
+async def _run_blocking(fn, *args, **kwargs):
+    """Offload CPU-heavy audio work to a thread pool under asyncio without breaking coro-stepped tests."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return fn(*args, **kwargs)
+    return await asyncio.to_thread(fn, *args, **kwargs)
+
+
 @app.post("/message", response_model=BrainReply)
 async def handle_message(msg: IncomingMessage) -> BrainReply:
     log.info("user=%s type=%s content=%r message_id=%s", msg.user_id, msg.type, msg.content, msg.message_id)
 
     if msg.type == "audio":
         try:
-            stt_res = stt_service.transcribe_b64(
+            stt_res = await _run_blocking(
+                stt_service.transcribe_b64,
                 msg.audio_b64,
                 mime=msg.audio_mime,
                 declared_seconds=msg.audio_seconds,
