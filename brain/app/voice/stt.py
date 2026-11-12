@@ -35,6 +35,21 @@ class TranscriptionResult(BaseModel):
     provider: str = "stub"
 
 
+def _load_audio_input(wav_path: Path):
+    """Loads a 16 kHz mono 16-bit PCM WAV directly into a float32 NumPy array (bypasses PyAV)."""
+    try:
+        import wave
+        import numpy as np
+
+        with wave.open(str(wav_path), "rb") as wf:
+            if wf.getnchannels() == 1 and wf.getsampwidth() == 2 and wf.getframerate() == 16000:
+                pcm = wf.readframes(wf.getnframes())
+                return np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+    except Exception:
+        pass
+    return str(wav_path)
+
+
 def _normalize_whisper_lang(raw_lang: Optional[str], transcript: str) -> str:
     script_lang = detect_language(transcript)
     if script_lang in ("si", "ta"):
@@ -68,6 +83,11 @@ class STTService:
             self._whisper_model = WhisperModel(model_name, device="cpu", compute_type="int8")
             self._whisper_model_name = model_name
         return self._whisper_model
+
+    def preload_model(self) -> None:
+        """Warm-loads the configured faster-whisper model into memory."""
+        if (settings.STT_PROVIDER or "").lower().strip() == "faster_whisper":
+            self._get_faster_whisper()
 
     def transcribe_file(self, wav_path: Path, duration_s: float = 0.0) -> TranscriptionResult:
         """Transcribes a 16 kHz mono WAV file using the configured STT provider."""
@@ -107,15 +127,33 @@ class STTService:
         self, wav_path: Path, duration_s: float
     ) -> TranscriptionResult:
         model = self._get_faster_whisper()
-        segments_gen, info = model.transcribe(
-            str(wav_path),
-            beam_size=5,
-            initial_prompt=DOMAIN_PROMPT,
-            vad_filter=True,
-        )
-        segments = list(segments_gen)
+        audio_input = _load_audio_input(wav_path)
+        try:
+            segments_gen, info = model.transcribe(
+                audio_input,
+                beam_size=5,
+                initial_prompt=DOMAIN_PROMPT,
+                vad_filter=True,
+            )
+            segments = list(segments_gen)
+        except ValueError:
+            segments = []
+            info = None
+
         texts = [seg.text.strip() for seg in segments if seg.text and seg.text.strip()]
         full_text = " ".join(texts).strip()
+
+        # Very short voice notes ("yes", "no", "delivery") can be clipped by Silero VAD; retry unfiltered
+        if not full_text:
+            segments_gen, info = model.transcribe(
+                audio_input,
+                beam_size=5,
+                initial_prompt=DOMAIN_PROMPT,
+                vad_filter=False,
+            )
+            segments = list(segments_gen)
+            texts = [seg.text.strip() for seg in segments if seg.text and seg.text.strip()]
+            full_text = " ".join(texts).strip()
 
         if not segments or not full_text:
             return TranscriptionResult(
