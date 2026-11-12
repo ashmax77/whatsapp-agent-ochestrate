@@ -1,0 +1,43 @@
+id: c028
+persona: Impatient customer who says yes early and gives an ambiguous landmark first.
+clock: '2026-11-11T19:00:00+05:30'
+goal: Do not place on early yes; clarify landmark to Nugegoda; place after summary.
+max_turns: 14
+scripted_turns:
+- user: I want a medium Supreme pizza.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  bot_reply: Added Medium Supreme Pizza (LKR 2,890). Would you like delivery or pickup?
+- user: Yes! Place it now, deliver near the clock tower.
+  tool_calls:
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  bot_reply: Could you clarify which town's clock tower and your street address so
+    I can assign the right branch?
+- user: Nugegoda supermarket clock tower, High Level Road.
+  tool_calls:
+  - name: delivery.set_address
+    args:
+      address_text: High Level Road, Nugegoda
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Summary: Medium Supreme Pizza (LKR 2,890), free Zone 1 delivery from
+    Nugegoda. Total: LKR 2,890. Confirm?'
+- user: Yes confirm now.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} placed for Nugegoda delivery! Total: LKR 2,890.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: nugegoda
+  total_lkr: 2890
+invariants:
+- order_no present in final reply

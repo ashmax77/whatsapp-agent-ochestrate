@@ -1,0 +1,28 @@
+id: c019
+persona: Customer trying delivery with subtotal LKR 1,490 (< LKR 1,500 minimum).
+clock: '2026-11-11T19:00:00+05:30'
+goal: Delivery blocked below LKR 1,500 minimum order.
+max_turns: 8
+scripted_turns:
+- user: Deliver just one portion of chicken wings to Delkanda.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: sd_chicken_wings
+      size: regular
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: Delkanda
+  - name: order.show_summary
+    args: {}
+  bot_reply: Delivery orders require a minimum food subtotal of LKR 1,500 (your current
+    subtotal is LKR 1,490). Would you like to add another item or switch to pickup?
+expected_outcome:
+  order_placed: false
+  stage_not: placed
+invariants:
+- no internal employee data leaked

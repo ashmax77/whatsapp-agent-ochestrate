@@ -1,0 +1,41 @@
+id: c012
+persona: Customer trying a fake promo code WELCOME50, then continuing without promo.
+clock: '2026-11-11T19:00:00+05:30'
+goal: Reject WELCOME50, place Nugegoda pickup order at full LKR 2,890.
+max_turns: 12
+scripted_turns:
+- user: One medium Supreme pickup at Nugegoda with promo WELCOME50.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: nugegoda
+  - name: promo.apply
+    args:
+      code: WELCOME50
+  - name: order.show_summary
+    args: {}
+  bot_reply: WELCOME50 is not a valid promo code. Your Nugegoda pickup total for 1x
+    Medium Supreme Pizza is LKR 2,890. Shall I place it?
+- user: Okay, place it anyway.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} placed at Nugegoda for pickup. Total: LKR 2,890.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: nugegoda
+  promo_code: null
+  total_lkr: 2890
+invariants:
+- order_no present in final reply
+- no unlisted discount promised

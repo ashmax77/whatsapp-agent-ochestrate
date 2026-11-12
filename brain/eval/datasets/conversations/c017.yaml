@@ -1,0 +1,29 @@
+id: c017
+persona: Customer trying FRIDAY10 on a Tuesday.
+clock: '2026-11-10T19:00:00+05:30'
+goal: Reject FRIDAY10 on Tuesday; order not placed.
+max_turns: 8
+scripted_turns:
+- user: Large Supreme at Nugegoda pickup with FRIDAY10.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: large
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: nugegoda
+  - name: promo.apply
+    args:
+      code: FRIDAY10
+  bot_reply: FRIDAY10 is only valid on Fridays for orders of LKR 3,000 or more.
+expected_outcome:
+  order_placed: false
+  stage_not: placed
+  promo_code: null
+invariants:
+- no unlisted discount promised

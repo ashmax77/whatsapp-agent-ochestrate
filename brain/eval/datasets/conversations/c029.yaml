@@ -1,0 +1,64 @@
+id: c029
+persona: Repeat customer placing one order and immediately reordering another.
+clock: '2026-11-11T19:30:00+05:30'
+goal: Place first order then place a second order in the same session.
+max_turns: 14
+scripted_turns:
+- user: Medium Supreme pickup at Nugegoda.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: nugegoda
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Summary: Medium Supreme (LKR 2,890) for Nugegoda pickup. Confirm?'
+- user: Yes place first order.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'First order {order_no} placed! Total: LKR 2,890.'
+- user: 'Actually I also want another pickup order at Nugegoda: one Garlic Bread and
+    one Potato Wedges.'
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: sd_garlic_bread
+      size: regular
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: sd_potato_wedges
+      size: regular
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: nugegoda
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Second order summary: Garlic Bread (LKR 690) + Potato Wedges (LKR 790)
+    at Nugegoda pickup = LKR 1,480. Confirm?'
+- user: Yes confirm second order.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Second order {order_no} placed at Nugegoda! Total: LKR 1,480.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: nugegoda
+  total_lkr: 1480
+invariants:
+- order_no present in final reply

@@ -1,0 +1,16 @@
+id: c031
+persona: Angry customer complaining about a cold wrong pizza.
+clock: '2026-11-11T19:45:00+05:30'
+goal: Trigger human handoff immediately on complaint.
+max_turns: 6
+scripted_turns:
+- user: I want to make a complaint! You delivered a cold pizza and the wrong order!
+  handoff:
+    reason: Customer complaint about cold pizza and wrong order
+    category: complaint
+    is_critical: false
+expected_outcome:
+  order_placed: false
+  stage: handoff
+invariants:
+- no internal employee data leaked

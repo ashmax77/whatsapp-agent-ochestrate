@@ -1,0 +1,24 @@
+id: c009
+persona: Customer asking for a pork pizza which is not on the menu.
+clock: '2026-11-11T19:10:00+05:30'
+goal: Inquire about pork pepperoni pizza; bot confirms no pork and lists available
+  pizzas.
+max_turns: 8
+scripted_turns:
+- user: Do you have any pork pepperoni or bacon pizza?
+  tool_calls:
+  - name: kb.ask
+    args:
+      question: Do you serve pork or bacon pizza?
+  - name: menu.list_items
+    args:
+      category: pizza
+  bot_reply: We do not serve any pork products across our menu. Our available pizzas
+    include Supreme, Chicken Tikka, BBQ Chicken, Devilled Chicken, Margherita, Veggie,
+    and Cheese Lover.
+expected_outcome:
+  order_placed: false
+  stage: browsing
+invariants:
+- no unlisted discount promised
+- no internal employee data leaked

@@ -1,0 +1,23 @@
+id: c021
+persona: Early morning customer messaging at 08:00 when all outlets are closed.
+clock: '2026-11-11T08:00:00+05:30'
+goal: Inform customer all branches are closed and refuse placing order.
+max_turns: 8
+scripted_turns:
+- user: Hi, can I pick up a medium Margherita from Colombo 07 now?
+  tool_calls:
+  - name: branch.list
+    args: {}
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: colombo07
+  bot_reply: All our branches are currently closed (Colombo 07 and Nugegoda open at
+    10:30, Kandy opens at 11:00). Please message us again once we open!
+expected_outcome:
+  order_placed: false
+  stage_not: placed
+invariants:
+- no internal employee data leaked

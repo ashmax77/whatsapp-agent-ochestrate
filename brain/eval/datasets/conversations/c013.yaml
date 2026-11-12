@@ -1,0 +1,41 @@
+id: c013
+persona: Customer trying expired MONSOON promo in November.
+clock: '2026-11-11T19:00:00+05:30'
+goal: Reject expired MONSOON promo and proceed with Colombo 07 Zone 1 delivery.
+max_turns: 12
+scripted_turns:
+- user: Large Veggie pizza to Colombo 07, apply MONSOON.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_veggie
+      size: large
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: Colombo 07
+  - name: promo.apply
+    args:
+      code: MONSOON
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'The MONSOON promotion expired on 2026-10-31. Summary: 1x Large Veggie
+    Pizza to Colombo 07 (Zone 1) = LKR 3,590. Confirm?'
+- user: Yes confirm.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} confirmed! Total: LKR 3,590.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: colombo07
+  promo_code: null
+  total_lkr: 3590
+invariants:
+- order_no present in final reply
+- no unlisted discount promised

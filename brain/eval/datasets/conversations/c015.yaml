@@ -1,0 +1,36 @@
+id: c015
+persona: Student trying STUDENT15 on Wednesday, then cancelling the draft.
+clock: '2026-11-11T15:00:00+05:30'
+goal: STUDENT15 rejected on Wednesday; customer abandons and cancels draft.
+max_turns: 10
+scripted_turns:
+- user: Medium Supreme pickup at Nugegoda with STUDENT15.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: nugegoda
+  - name: promo.apply
+    args:
+      code: STUDENT15
+  bot_reply: STUDENT15 is only valid on Tuesdays. Today is Wednesday, so the discount
+    cannot be applied.
+- user: Oh okay, cancel my order then.
+  tool_calls:
+  - name: order.cancel_draft
+    args: {}
+  bot_reply: No problem, I've cancelled your draft order. Let me know whenever you'd
+    like to order again!
+expected_outcome:
+  order_placed: false
+  stage: browsing
+  promo_code: null
+invariants:
+- no unlisted discount promised

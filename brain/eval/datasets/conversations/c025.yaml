@@ -1,0 +1,42 @@
+id: c025
+persona: Casual Sri Lankan voice-note style Singlish customer.
+clock: '2026-11-11T20:15:00+05:30'
+goal: Understand Singlish voice-style request and place Nugegoda Zone 1 delivery.
+max_turns: 12
+scripted_turns:
+- user: Machan eka large devilled chicken pizza ekakuth garlic bread ekakuth Nugegoda
+    town ekata ewanna puluwanda?
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_devilled_chicken
+      size: large
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: sd_garlic_bread
+      size: regular
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: Nugegoda town
+  - name: order.show_summary
+    args: {}
+  bot_reply: Sure! Large Devilled Chicken Pizza (LKR 4,390) + Garlic Bread (LKR 690)
+    to Nugegoda (free Zone 1 delivery) = LKR 5,080. Confirm karannada?
+- user: Ow hari, confirm karanna.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} confirm kara! Total: LKR 5,080.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: nugegoda
+  total_lkr: 5080
+invariants:
+- order_no present in final reply

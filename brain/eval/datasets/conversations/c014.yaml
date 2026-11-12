@@ -1,0 +1,41 @@
+id: c014
+persona: Student ordering from Colombo 07 on Tuesday trying STUDENT15.
+clock: '2026-11-10T18:00:00+05:30'
+goal: Reject STUDENT15 at Colombo 07 (valid only at Nugegoda and Kandy), complete
+  at LKR 2,490.
+max_turns: 12
+scripted_turns:
+- user: Medium Margherita pickup at Colombo 07 with STUDENT15.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_margherita
+      size: medium
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: colombo07
+  - name: promo.apply
+    args:
+      code: STUDENT15
+  - name: order.show_summary
+    args: {}
+  bot_reply: STUDENT15 is only valid at Nugegoda and Kandy branches on Tuesdays. Your
+    Colombo 07 pickup total is LKR 2,490. Confirm?
+- user: Fine, place it.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} placed at Colombo 07. Total: LKR 2,490.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: colombo07
+  promo_code: null
+  total_lkr: 2490
+invariants:
+- order_no present in final reply

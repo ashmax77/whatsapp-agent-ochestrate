@@ -1,0 +1,46 @@
+id: c018
+persona: Friday dinner customer applying FRIDAY10 on Nugegoda Zone 1 delivery.
+clock: '2026-11-13T19:30:00+05:30'
+goal: Apply FRIDAY10 on Friday (subtotal 3580, 10% off 358 -> total 3222).
+max_turns: 12
+scripted_turns:
+- user: Medium Supreme + Garlic Bread delivered to Nugegoda with FRIDAY10.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: sd_garlic_bread
+      size: regular
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: Nugegoda
+  - name: promo.apply
+    args:
+      code: FRIDAY10
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'FRIDAY10 applied (10% off LKR 3,580 = LKR 358 off). Free Zone 1 delivery
+    from Nugegoda. Total: LKR 3,222. Confirm?'
+- user: Yes, place order.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} placed for Nugegoda delivery! Total: LKR 3,222.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: nugegoda
+  fulfilment: delivery
+  promo_code: FRIDAY10
+  total_lkr: 3222
+invariants:
+- order_no present in final reply

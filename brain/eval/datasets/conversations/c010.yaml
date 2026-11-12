@@ -1,0 +1,28 @@
+id: c010
+persona: Customer in Panadura (>8 km from Colombo 07/Nugegoda).
+clock: '2026-11-11T19:00:00+05:30'
+goal: Attempt delivery outside Colombo 8 km radius; branch must remain unset.
+max_turns: 8
+scripted_turns:
+- user: Can you deliver a medium Supreme pizza to Galle Fort?
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: Galle Fort
+  bot_reply: Sorry, Galle Fort is outside our delivery zones (we deliver within 8
+    km of Colombo 07 and Nugegoda, and 6 km of Kandy). Would you prefer pickup from
+    one of our outlets?
+expected_outcome:
+  order_placed: false
+  stage_not: placed
+  branch_id: null
+invariants:
+- no internal employee data leaked

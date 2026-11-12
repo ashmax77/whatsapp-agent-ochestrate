@@ -1,0 +1,36 @@
+id: c027
+persona: Tamil-speaking customer ordering pickup from Kandy.
+clock: '2026-11-11T18:30:00+05:30'
+goal: Complete Tamil pickup order for Medium Veggie Pizza at Kandy.
+max_turns: 12
+scripted_turns:
+- user: வணக்கம், கண்டி கிளையில் பிக்கப் செய்ய ஒரு வெஜ் பீட்சா மீடியம் வேண்டும்.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_veggie
+      size: medium
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: kandy
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'கண்டி பிக்கப் சுருக்கம்: மீடியம் வெஜ் பீட்சா (LKR 2,590). உறுதிப்படுத்தலாமா?'
+- user: ஆம், உறுதிப்படுத்துங்கள்.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'உங்கள் ஆர்டர் {order_no} உறுதிப்படுத்தப்பட்டது! மொத்தம்: LKR 2,590.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: kandy
+  fulfilment: pickup
+  total_lkr: 2590
+invariants:
+- order_no present in final reply

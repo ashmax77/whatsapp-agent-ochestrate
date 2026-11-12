@@ -1,0 +1,52 @@
+id: c003
+persona: University student in Peradeniya ordering Zone 2 delivery from Kandy.
+clock: '2026-11-11T18:45:00+05:30'
+goal: Order Medium Devilled Chicken + Cheesy Garlic Bread to Peradeniya (Zone 2 fee
+  LKR 250).
+max_turns: 12
+scripted_turns:
+- user: Can I order a medium Devilled Chicken pizza and cheesy garlic bread to Peradeniya?
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_devilled_chicken
+      size: medium
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: sd_cheesy_garlic_bread
+      size: regular
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: University Rd, Peradeniya
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Order summary from Kandy (Zone 2): Medium Devilled Chicken (LKR 3,190)
+    + Cheesy Garlic Bread (LKR 990) + Delivery Fee (LKR 250) = Total LKR 4,430. Shall
+    I place it?'
+- user: Yes go ahead.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} placed with Kandy branch! Total: LKR 4,430.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: kandy
+  fulfilment: delivery
+  items:
+  - item_id: pz_devilled_chicken
+    size: medium
+    qty: 1
+  - item_id: sd_cheesy_garlic_bread
+    size: regular
+    qty: 1
+  total_lkr: 4430
+invariants:
+- order_no present in final reply
+- no price in any reply differs from tool results

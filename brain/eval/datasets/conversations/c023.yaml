@@ -1,0 +1,34 @@
+id: c023
+persona: Customer ordering Ice Cream Cup to Zone 2 (Maharagama).
+clock: '2026-11-11T19:00:00+05:30'
+goal: Reject Ice Cream Cup delivery to Zone 2 at summary time.
+max_turns: 8
+scripted_turns:
+- user: Medium Supreme pizza and an ice cream cup delivered to Maharagama.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: ds_ice_cream_cup
+      size: regular
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: Maharagama
+  - name: order.show_summary
+    args: {}
+  bot_reply: Sorry, Ice Cream Cup cannot be delivered to Zone 2 areas like Maharagama
+    due to melting risk. Would you like to remove it or switch to Chocolate Lava Cake?
+expected_outcome:
+  order_placed: false
+  stage_not: placed
+  branch_id: nugegoda
+invariants:
+- no internal employee data leaked

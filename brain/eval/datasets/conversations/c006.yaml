@@ -1,0 +1,60 @@
+id: c006
+persona: Indecisive customer who swaps pizza and changes delivery to pickup.
+clock: '2026-11-11T19:00:00+05:30'
+goal: Start with Medium Supreme for delivery, switch to Large BBQ Chicken for pickup
+  at Nugegoda.
+max_turns: 14
+scripted_turns:
+- user: Give me a medium Supreme pizza for delivery to Nugegoda.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: Nugegoda town
+  bot_reply: Added Medium Supreme Pizza (LKR 2,890) for Nugegoda delivery.
+- user: Actually change that to a large BBQ Chicken pizza and make it pickup at Nugegoda
+    instead.
+  tool_calls:
+  - name: cart.remove_item
+    args:
+      line_index: 0
+  - name: cart.add_item
+    args:
+      item_id: pz_bbq_chicken
+      size: large
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: nugegoda
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Updated to pickup at Nugegoda: 1x Large BBQ Chicken Pizza (LKR 4,190).
+    Confirm?'
+- user: Yes place it.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Placed order {order_no} for Nugegoda pickup. Total: LKR 4,190.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: nugegoda
+  fulfilment: pickup
+  items:
+  - item_id: pz_bbq_chicken
+    size: large
+    qty: 1
+  total_lkr: 4190
+invariants:
+- order_no present in final reply

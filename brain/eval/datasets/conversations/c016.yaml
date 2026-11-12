@@ -1,0 +1,52 @@
+id: c016
+persona: Student at Kandy on Tuesday applying STUDENT15.
+clock: '2026-11-10T14:00:00+05:30'
+goal: Apply STUDENT15 at Kandy pickup on Tuesday and remind customer to show student
+  ID.
+max_turns: 12
+scripted_turns:
+- user: Medium Supreme + Garlic Bread + Soft Drink 500ml pickup at Kandy with STUDENT15.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: sd_garlic_bread
+      size: regular
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: bv_soft_drink_500
+      size: regular
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: kandy
+  - name: promo.apply
+    args:
+      code: STUDENT15
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Applied STUDENT15 (15% off LKR 3,930 = LKR 590 discount). Total: LKR
+    3,340 for Kandy pickup. Please show your valid student ID when collecting. Confirm?'
+- user: Yes!
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} placed at Kandy! Total: LKR 3,340. Please remember
+    to show your student ID at pickup.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: kandy
+  promo_code: STUDENT15
+invariants:
+- order_no present in final reply
+- customer is told to show a student ID

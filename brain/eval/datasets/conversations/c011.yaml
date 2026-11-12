@@ -1,0 +1,29 @@
+id: c011
+persona: Customer in Matale (>6 km from Kandy).
+clock: '2026-11-11T19:00:00+05:30'
+goal: Attempt delivery to Matale (>6 km from Kandy); rejected as OUT_OF_AREA.
+max_turns: 8
+scripted_turns:
+- user: Deliver a large Margherita to Matale town please.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_margherita
+      size: large
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      lat: 7.4675
+      lng: 80.6234
+      address_text: Matale town
+  bot_reply: Sorry, Matale is outside Kandy's 6 km delivery radius. We can prepare
+    it for pickup at Kandy City Centre instead if you'd like.
+expected_outcome:
+  order_placed: false
+  stage_not: placed
+  branch_id: null
+invariants:
+- no internal employee data leaked

@@ -1,0 +1,42 @@
+id: c005
+persona: Customer picking up lunch at Kandy City Centre.
+clock: '2026-11-11T17:15:00+05:30'
+goal: Pickup Personal Veggie Pizza and 1.5L Soft Drink at Kandy.
+max_turns: 10
+scripted_turns:
+- user: I want to pick up a personal Veggie pizza and a 1.5L soft drink at Kandy.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_veggie
+      size: personal
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: bv_soft_drink_1500
+      size: regular
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: kandy
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Kandy pickup summary: Personal Veggie Pizza (LKR 1,590) + 1.5L Soft
+    Drink (LKR 750) = LKR 2,340. Confirm?'
+- user: Confirm!
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} placed for Kandy pickup! Total: LKR 2,340.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: kandy
+  fulfilment: pickup
+  total_lkr: 2340
+invariants:
+- order_no present in final reply

@@ -1,0 +1,46 @@
+id: c022
+persona: Customer asking a dietary FAQ mid-order and then completing pickup.
+clock: '2026-11-11T19:00:00+05:30'
+goal: Answer halal/pork FAQ mid-cart, then complete Nugegoda pickup for Medium Veggie.
+max_turns: 12
+scripted_turns:
+- user: Add one medium Veggie pizza for pickup at Nugegoda.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_veggie
+      size: medium
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: nugegoda
+  bot_reply: Added Medium Veggie Pizza (LKR 2,590) for Nugegoda pickup.
+- user: Quick question, are your outlets halal certified?
+  tool_calls:
+  - name: kb.ask
+    args:
+      question: Are Pizza Hut outlets halal certified?
+  bot_reply: We do not serve any pork products; for outlet-specific halal certification
+    details, please check with the branch directly. Ready to review your order summary?
+- user: Yes show my summary.
+  tool_calls:
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Summary: Medium Veggie Pizza (LKR 2,590) for Nugegoda pickup. Shall
+    I place it?'
+- user: Yes place it!
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} placed for Nugegoda pickup! Total: LKR 2,590.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: nugegoda
+  total_lkr: 2590
+invariants:
+- order_no present in final reply

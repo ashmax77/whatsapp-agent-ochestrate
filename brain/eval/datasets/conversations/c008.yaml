@@ -1,0 +1,47 @@
+id: c008
+persona: Customer who updates pizza size from medium to large.
+clock: '2026-11-11T20:00:00+05:30'
+goal: Add Cheese Lover medium, update size to large, pickup at Colombo 07.
+max_turns: 12
+scripted_turns:
+- user: One medium Cheese Lover pizza for pickup at Colombo 07.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_cheese_lover
+      size: medium
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: pickup
+  - name: order.set_pickup
+    args:
+      branch_id: colombo07
+  bot_reply: Added Medium Cheese Lover (LKR 2,790) for Colombo 07 pickup.
+- user: Make that a large please.
+  tool_calls:
+  - name: cart.update_item
+    args:
+      line_index: 0
+      size: large
+  - name: order.show_summary
+    args: {}
+  bot_reply: Updated to Large Cheese Lover (LKR 3,890) at Colombo 07 pickup. Confirm?
+- user: Confirm.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} confirmed! Total: LKR 3,890.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: colombo07
+  fulfilment: pickup
+  items:
+  - item_id: pz_cheese_lover
+    size: large
+    qty: 1
+  total_lkr: 3890
+invariants:
+- order_no present in final reply

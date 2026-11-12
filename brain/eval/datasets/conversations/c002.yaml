@@ -1,0 +1,47 @@
+id: c002
+persona: Customer in Delkanda ordering a large pizza for delivery.
+clock: '2026-11-11T19:30:00+05:30'
+goal: Order 1 Large Chicken Tikka Pizza delivered to Delkanda, Nugegoda.
+max_turns: 12
+scripted_turns:
+- user: I'd like to order 1 large Chicken Tikka pizza.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_chicken_tikka
+      size: large
+      qty: 1
+  bot_reply: Added 1x Large Chicken Tikka Pizza (LKR 4,190). Would you like delivery
+    or pickup?
+- user: Delivery to 45 High Level Road, Delkanda.
+  tool_calls:
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: 45 High Level Road, Delkanda
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Summary: 1x Large Chicken Tikka Pizza (LKR 4,190) from Nugegoda (Zone
+    1, free delivery). Total: LKR 4,190. Confirm?'
+- user: Confirmed!
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Confirmed! Order {order_no} is placed for Nugegoda delivery. Total:
+    LKR 4,190.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: nugegoda
+  fulfilment: delivery
+  items:
+  - item_id: pz_chicken_tikka
+    size: large
+    qty: 1
+  total_lkr: 4190
+invariants:
+- order_no present in final reply
+- no price in any reply differs from tool results

@@ -1,0 +1,62 @@
+id: c007
+persona: Customer who adds 3 items and removes Chicken Wings before checkout.
+clock: '2026-11-11T19:20:00+05:30'
+goal: Add Supreme Medium, Chicken Wings, Lava Cake; remove Chicken Wings; deliver
+  to Nugegoda.
+max_turns: 12
+scripted_turns:
+- user: Add a medium Supreme pizza, chicken wings, and chocolate lava cake.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: medium
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: sd_chicken_wings
+      size: regular
+      qty: 1
+  - name: cart.add_item
+    args:
+      item_id: ds_choc_lava_cake
+      size: regular
+      qty: 1
+  bot_reply: Added Medium Supreme (LKR 2,890), Chicken Wings (LKR 1,490), and Chocolate
+    Lava Cake (LKR 790).
+- user: Remove the chicken wings and deliver to Delkanda.
+  tool_calls:
+  - name: cart.remove_item
+    args:
+      line_index: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: Delkanda
+  - name: order.show_summary
+    args: {}
+  bot_reply: 'Removed chicken wings. Summary for Delkanda delivery: Medium Supreme
+    (LKR 2,890) + Chocolate Lava Cake (LKR 790) = LKR 3,680. Confirm?'
+- user: Yes.
+  tool_calls:
+  - name: order.place_order
+    args: {}
+    use_summary_hash: true
+  bot_reply: 'Order {order_no} placed! Total: LKR 3,680.'
+expected_outcome:
+  order_placed: true
+  stage: placed
+  branch_id: nugegoda
+  fulfilment: delivery
+  items:
+  - item_id: pz_supreme
+    size: medium
+    qty: 1
+  - item_id: ds_choc_lava_cake
+    size: regular
+    qty: 1
+  total_lkr: 3680
+invariants:
+- order_no present in final reply

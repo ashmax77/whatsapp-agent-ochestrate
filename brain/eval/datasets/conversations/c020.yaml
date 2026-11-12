@@ -1,0 +1,28 @@
+id: c020
+persona: Late-night customer ordering delivery at 22:35 (past 22:30 cutoff).
+clock: '2026-11-11T22:35:00+05:30'
+goal: Reject delivery past 22:30 last delivery cutoff.
+max_turns: 8
+scripted_turns:
+- user: Deliver a large Supreme pizza to Colombo 07 right now.
+  tool_calls:
+  - name: cart.add_item
+    args:
+      item_id: pz_supreme
+      size: large
+      qty: 1
+  - name: order.set_fulfilment
+    args:
+      mode: delivery
+  - name: delivery.set_address
+    args:
+      address_text: Colombo 07
+  - name: order.show_summary
+    args: {}
+  bot_reply: Sorry, Colombo 07 last delivery order cutoff is 22:30. You can still
+    place a pickup order before 23:00.
+expected_outcome:
+  order_placed: false
+  stage_not: placed
+invariants:
+- no internal employee data leaked
