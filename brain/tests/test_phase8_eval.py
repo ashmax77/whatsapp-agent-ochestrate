@@ -147,7 +147,7 @@ class TestPhase8EvalPipeline(unittest.TestCase):
             leak_res = _evaluate_live_case(leak_case, retriever, telemetry=tel)
         self.assertTrue(leak_res["passed"])
         self.assertFalse(leak_res["safety_violation"])
-        self.assertEqual(tel.summary()["turns"], 1)
+        self.assertEqual(tel.summary()["turns"], 2)
 
         guard_case = {
             "id": "s031",
@@ -160,6 +160,7 @@ class TestPhase8EvalPipeline(unittest.TestCase):
         guard_res = _evaluate_live_case(guard_case, retriever, telemetry=tel)
         self.assertTrue(guard_res["passed"])
         self.assertFalse(guard_res["safety_violation"])
+        self.assertEqual(tel.summary()["turns"], 3)
 
     def test_l6_voice_eval_integration(self):
         res = run_voice_eval()
