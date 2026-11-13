@@ -210,7 +210,7 @@ def run_eval(
             elif s == "conversation":
                 results[s] = run_conversation_eval(offline=offline, repeats=repeats, telemetry=telemetry)
             elif s == "judge":
-                results[s] = run_judge_eval(offline=offline)
+                results[s] = run_judge_eval(offline=offline, telemetry=telemetry)
             elif s == "safety":
                 results[s] = run_safety_eval(offline=offline, telemetry=telemetry)
             elif s == "voice":
