@@ -165,7 +165,6 @@ class LLMClient:
                 fallback_model
                 and chosen_model != fallback_model
                 and "connection error" not in err_lower
-                and "timed out" not in err_lower
             ):
                 log.warning(
                     "Primary model %s failed (%s); falling back to %s.",

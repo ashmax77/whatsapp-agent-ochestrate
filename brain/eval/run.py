@@ -154,6 +154,10 @@ def _render_summary_md(report: Dict[str, Any]) -> str:
         f"- Turns: `{tel.get('turns', 0)}` | Total tokens: `{tel.get('total_tokens', 0)}` | Est. cost: `${tel.get('estimated_cost_usd', 0.0):.6f}`",
         f"- Latency p50: `{tel.get('latency_p50_ms', 0.0)} ms` | p95: `{tel.get('latency_p95_ms', 0.0)} ms`",
     ])
+    if report.get("latency_gate_failures"):
+        lines.extend(["", "## Latency Gate Failures", ""])
+        for lf in report["latency_gate_failures"]:
+            lines.append(f"- {lf}")
     if report.get("baseline_regressions"):
         lines.extend(["", "## Baseline Regressions", ""])
         for reg in report["baseline_regressions"]:
@@ -217,22 +221,27 @@ def run_eval(
                 results[s] = _evaluate_voice_with_gates()
             else:
                 raise ValueError(f"Unknown eval suite: {s}")
+        meta = get_eval_metadata()
     finally:
         settings.ORCHESTRATOR_MODEL = prev_model
 
     tel_summary = telemetry.summary()
-    latency_ok = True
+    latency_gate_failures: List[str] = []
     if not offline and tel_summary.get("turns", 0) > 0:
-        latency_ok = (
-            tel_summary["latency_p50_ms"] <= QUALITY_GATES["latency_p50_ms_max"]
-            and tel_summary["latency_p95_ms"] <= QUALITY_GATES["latency_p95_ms_max"]
-        )
+        if tel_summary["latency_p50_ms"] > QUALITY_GATES["latency_p50_ms_max"]:
+            latency_gate_failures.append(
+                f"latency_p50_ms={tel_summary['latency_p50_ms']:.2f} ms > {QUALITY_GATES['latency_p50_ms_max']:.1f} ms"
+            )
+        if tel_summary["latency_p95_ms"] > QUALITY_GATES["latency_p95_ms_max"]:
+            latency_gate_failures.append(
+                f"latency_p95_ms={tel_summary['latency_p95_ms']:.2f} ms > {QUALITY_GATES['latency_p95_ms_max']:.1f} ms"
+            )
+    latency_ok = len(latency_gate_failures) == 0
 
     regressions = check_baseline_regressions(results) if (check_baseline and not save_baseline) else []
     all_suites_passed = all(bool(r.get("passed")) for r in results.values())
     overall_passed = all_suites_passed and latency_ok and len(regressions) == 0
 
-    meta = get_eval_metadata()
     meta["timestamp_utc"] = datetime.now(timezone.utc).isoformat()
     meta["offline"] = offline
 
@@ -241,6 +250,7 @@ def run_eval(
         "quality_gates": QUALITY_GATES,
         "telemetry": tel_summary,
         "suites": results,
+        "latency_gate_failures": latency_gate_failures,
         "baseline_regressions": regressions,
         "passed": overall_passed,
     }
