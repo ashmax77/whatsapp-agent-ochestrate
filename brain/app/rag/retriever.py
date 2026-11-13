@@ -18,7 +18,7 @@ import re
 import logging
 from collections import Counter
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 from pydantic import BaseModel
 from app.config import settings
@@ -94,6 +94,7 @@ class _CrossEncoderReranker:
     """Optional cross-encoder. Enabled only when RERANKER_MODEL is set. Cached singleton."""
     _instance = None
     _loaded_model_name = None
+    _score_cache: Dict[Tuple[str, str], float] = {}
 
     def __init__(self, model_name: str):
         if _CrossEncoderReranker._instance is None or _CrossEncoderReranker._loaded_model_name != model_name:
@@ -116,7 +117,12 @@ class _CrossEncoderReranker:
         self.model = _CrossEncoderReranker._instance
 
     def scores(self, query: str, texts: List[str]) -> List[float]:
-        return [float(s) for s in self.model.predict([(query, t) for t in texts])]
+        missing_pairs = [(query, t) for t in texts if (query, t) not in self._score_cache]
+        if missing_pairs:
+            preds = self.model.predict(missing_pairs, show_progress_bar=False)
+            for pair, val in zip(missing_pairs, preds):
+                self._score_cache[pair] = float(val)
+        return [self._score_cache[(query, t)] for t in texts]
 
 
 class KnowledgeRetriever:
