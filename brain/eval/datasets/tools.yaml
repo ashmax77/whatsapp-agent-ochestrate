@@ -31,7 +31,8 @@
       tool_call: {name: "delivery.set_address", args: {address_text: "Peradeniya"}}
   expect:
     tool_calls_include: [{name: "delivery.set_address"}]
-    final_state: {branch_id: "kandy", delivery_zone: "z2", stage: collecting_fulfilment}
+    final_state: {branch_id: "kandy", delivery_zone: "z2", stage_in: ["collecting_fulfilment", "confirming"]}
+    forbidden_tools: ["order.place_order"]
 
 - id: t004
   description: "Student code at a branch that does not honour it"

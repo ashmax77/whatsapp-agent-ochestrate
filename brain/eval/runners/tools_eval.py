@@ -94,6 +94,9 @@ def _check_final_state(expect_state: Dict[str, Any], sess: Session) -> List[str]
         if k == "stage_not":
             if sess.stage == v:
                 errs.append(f"stage must not be {v!r}")
+        elif k == "stage_in":
+            if sess.stage not in v:
+                errs.append(f"stage: expected one of {v!r}, got {sess.stage!r}")
         elif k == "cart":
             actual_cart = [
                 {"item_id": c.item_id, "size": c.size, "qty": c.qty} for c in sess.cart
