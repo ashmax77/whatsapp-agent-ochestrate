@@ -1,16 +1,18 @@
 import os
 from pathlib import Path
 from typing import Dict, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 # Base directory for brain
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load .env manually if python-dotenv is not installed
-env_file = BASE_DIR / ".env"
-if env_file.exists():
+
+def _parse_env_file(path: Path) -> Dict[str, str]:
+    parsed: Dict[str, str] = {}
+    if not path.exists():
+        return parsed
     try:
-        with open(env_file, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
@@ -20,15 +22,51 @@ if env_file.exists():
                         val = val.split(" #", 1)[0]
                     elif "\t#" in val:
                         val = val.split("\t#", 1)[0]
-                    # Strip quotes if present
                     val = val.strip().strip("'").strip('"')
-                    os.environ.setdefault(key.strip(), val)
+                    parsed[key.strip()] = val
     except Exception:
         pass
+    return parsed
+
+
+def _apply_env_file(path: Path, override: bool = True) -> float:
+    if not path.exists():
+        return 0.0
+    parsed = _parse_env_file(path)
+    for key, val in parsed.items():
+        if override or key not in os.environ:
+            os.environ[key] = val
+    try:
+        return path.stat().st_mtime
+    except Exception:
+        return 0.0
+
+
+_INITIAL_ENV_MTIME = _apply_env_file(BASE_DIR / ".env", override=True)
 
 
 class Settings(BaseModel):
-    
+    _env_mtime: float = PrivateAttr(default=_INITIAL_ENV_MTIME)
+
+    def refresh_from_env(self) -> None:
+        env_path = BASE_DIR / ".env"
+        if not env_path.exists():
+            return
+        try:
+            mtime = env_path.stat().st_mtime
+        except Exception:
+            return
+        if mtime == self._env_mtime:
+            return
+        self._env_mtime = _apply_env_file(env_path, override=True)
+        self.OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://codecraftapi.com/v1")
+        self.OPENAI_API_KEY = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY", "")
+        self.CODECRAFT_KEY = os.getenv("CODECRAFT_KEY", "")
+        self.ORCHESTRATOR_MODEL = os.getenv("ORCHESTRATOR_MODEL", "gpt-5.5")
+        self.SUBAGENT_MODEL = os.getenv("SUBAGENT_MODEL", "gemini-3.7-flash")
+        self.JUDGE_MODEL = os.getenv("JUDGE_MODEL", "gpt-5.5-pro")
+        self.EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+
     PROJECT_NAME: str = "Pizza Hut WhatsApp Multi-Agent Brain"
     
     # LLM Settings

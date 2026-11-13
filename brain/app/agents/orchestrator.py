@@ -41,6 +41,9 @@ _VOICE_CONFIRM_YES = {
 _VOICE_CONFIRM_NO = {
     "no", "n", "wrong", "cancel", "nope", "na", "epaa", "නැහැ", "එපා", "இல்லை", "வேண்டாம்",
 }
+_GREETING_FALLBACK_WORDS = {
+    "hi", "hello", "hey", "good morning", "good afternoon", "good evening", "ayubowan", "vanakkam",
+}
 _ORDER_SIGNAL_RE = re.compile(
     r"\b(\d+|one|two|three|four|five|personal|medium|large|regular|order|add|want|deliver|delivery|pickup|address|street|road|lane|promo|code|student15|friday10|colombo|nugegoda|kandy|delkanda|maharagama|bambalapitiya|kollupitiya|wellawatte|borella|kohuwala|nawala|kotte|peradeniya|katugastota)\b",
     re.IGNORECASE,
@@ -384,6 +387,13 @@ class Orchestrator:
                     llm_resp = llm_client.complete(**llm_kwargs)
                 except Exception as e:
                     log.warning("[%s] Orchestrator LLM completion failed (%s). Executing fallback.", trace_id, e)
+                    normalized_greeting = raw_text.strip().lower().rstrip("!.?,")
+                    if normalized_greeting in _GREETING_FALLBACK_WORDS:
+                        reply_text = (
+                            "Hi! Welcome to Pizza Hut Sri Lanka 🍕 We have branches in Colombo 07, "
+                            "Nugegoda, and Kandy. Would you like to see our menu or place an order?"
+                        )
+                        break
                     # Safe fallback: if user is asking questions, route to knowledge agent
                     rag_res = knowledge_agent.ask(raw_text, session=session)
                     reply_text = rag_res.get("answer", "I'm having a little trouble connecting right now. Please try again in a minute 🙏")

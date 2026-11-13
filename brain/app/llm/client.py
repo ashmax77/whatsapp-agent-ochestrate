@@ -1,6 +1,6 @@
 import time
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 from app.config import settings
 
@@ -29,46 +29,35 @@ class LLMClient:
 
     def __init__(self):
         self._openai_client = None
+        self._client_key: Optional[Tuple[str, str]] = None
 
     def _get_openai_client(self):
-        if self._openai_client is None:
+        settings.refresh_from_env()
+        api_key = settings.OPENAI_API_KEY or settings.CODECRAFT_KEY or ""
+        base_url = settings.OPENAI_BASE_URL or ""
+        key_pair = (api_key, base_url)
+        if self._openai_client is None or key_pair != self._client_key:
             import openai
-            api_key = settings.OPENAI_API_KEY or settings.CODECRAFT_KEY
-            base_url = settings.OPENAI_BASE_URL or None
             self._openai_client = openai.OpenAI(
                 api_key=api_key or "sk-dummy",
-                base_url=base_url,
+                base_url=base_url or None,
                 max_retries=1,
-                timeout=25.0
+                timeout=25.0,
             )
+            self._client_key = key_pair
         return self._openai_client
 
-    def complete(
+    def _execute_completion(
         self,
-        system: str,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
-        max_tokens: int = 800,
-        temperature: float = 0.2,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        retries: int = 0,
-        tool_choice: str = "auto",
+        chosen_model: str,
+        formatted_messages: List[Dict[str, str]],
+        max_tokens: int,
+        temperature: float,
+        tools: Optional[List[Dict[str, Any]]],
+        retries: int,
+        tool_choice: str,
     ) -> LLMResponse:
-        """
-        Executes a completion with automated retries, latency timing, and token accounting.
-        """
-        chosen_model = model or settings.SUBAGENT_MODEL
         start_time = time.perf_counter()
-
-        api_key = settings.OPENAI_API_KEY or settings.CODECRAFT_KEY
-        if not api_key:
-            raise RuntimeError("No LLM API key configured in environment.")
-
-        formatted_messages = []
-        if system:
-            formatted_messages.append({"role": "system", "content": system})
-        formatted_messages.extend(messages)
-
         last_error = None
         for attempt in range(retries + 1):
             try:
@@ -129,9 +118,71 @@ class LLMClient:
                 if attempt < retries:
                     time.sleep(1.0 * (attempt + 1))
 
-        latency = (time.perf_counter() - start_time) * 1000
         log.error("LLM complete failed after %d attempts: %s", retries + 1, last_error)
         raise RuntimeError(f"LLM call failed: {last_error}") from last_error
+
+    def complete(
+        self,
+        system: str,
+        messages: List[Dict[str, str]],
+        model: Optional[str] = None,
+        max_tokens: int = 800,
+        temperature: float = 0.2,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        retries: int = 0,
+        tool_choice: str = "auto",
+    ) -> LLMResponse:
+        """
+        Executes a completion with automated retries, latency timing, and token accounting.
+        Automatically falls back to settings.SUBAGENT_MODEL if the primary model fails.
+        """
+        settings.refresh_from_env()
+        chosen_model = model or settings.SUBAGENT_MODEL
+
+        api_key = settings.OPENAI_API_KEY or settings.CODECRAFT_KEY
+        if not api_key:
+            raise RuntimeError("No LLM API key configured in environment.")
+
+        formatted_messages = []
+        if system:
+            formatted_messages.append({"role": "system", "content": system})
+        formatted_messages.extend(messages)
+
+        try:
+            return self._execute_completion(
+                chosen_model=chosen_model,
+                formatted_messages=formatted_messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                tools=tools,
+                retries=retries,
+                tool_choice=tool_choice,
+            )
+        except Exception as primary_err:
+            fallback_model = settings.SUBAGENT_MODEL
+            err_lower = str(primary_err).lower()
+            if (
+                fallback_model
+                and chosen_model != fallback_model
+                and "connection error" not in err_lower
+                and "timed out" not in err_lower
+            ):
+                log.warning(
+                    "Primary model %s failed (%s); falling back to %s.",
+                    chosen_model,
+                    primary_err,
+                    fallback_model,
+                )
+                return self._execute_completion(
+                    chosen_model=fallback_model,
+                    formatted_messages=formatted_messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    tools=tools,
+                    retries=retries,
+                    tool_choice=tool_choice,
+                )
+            raise
 
     def embed(self, text: str, model: Optional[str] = None) -> List[float]:
         """
