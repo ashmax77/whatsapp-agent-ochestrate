@@ -9,6 +9,79 @@ from app.config import settings
 log = logging.getLogger("brain.menu_repo")
 
 
+MENU_ALIASES: Dict[str, str] = {
+    # Desserts
+    "lava cake": "ds_choc_lava_cake",
+    "choc lava cake": "ds_choc_lava_cake",
+    "chocolate lava cake": "ds_choc_lava_cake",
+    "chocolate cake": "ds_choc_lava_cake",
+    "lava": "ds_choc_lava_cake",
+    "cake": "ds_choc_lava_cake",
+    "ice cream": "ds_ice_cream_cup",
+    "ice cream cup": "ds_ice_cream_cup",
+    "icecream": "ds_ice_cream_cup",
+    # Sides
+    "cheesy garlic bread": "sd_cheesy_garlic_bread",
+    "cheese garlic bread": "sd_cheesy_garlic_bread",
+    "garlic bread cheese": "sd_cheesy_garlic_bread",
+    "garlic bread with cheese": "sd_cheesy_garlic_bread",
+    "cheese bread": "sd_cheesy_garlic_bread",
+    "garlic bread": "sd_garlic_bread",
+    "plain garlic bread": "sd_garlic_bread",
+    "chicken wings": "sd_chicken_wings",
+    "wings": "sd_chicken_wings",
+    "hot wings": "sd_chicken_wings",
+    "bbq wings": "sd_chicken_wings",
+    "potato wedges": "sd_potato_wedges",
+    "wedges": "sd_potato_wedges",
+    "chicken alfredo pasta": "sd_chicken_alfredo_pasta",
+    "chicken alfredo": "sd_chicken_alfredo_pasta",
+    "alfredo pasta": "sd_chicken_alfredo_pasta",
+    "alfredo": "sd_chicken_alfredo_pasta",
+    "pasta": "sd_chicken_alfredo_pasta",
+    # Pizzas
+    "margherita": "pz_margherita",
+    "margarita": "pz_margherita",
+    "supreme": "pz_supreme",
+    "supreme pizza": "pz_supreme",
+    "veggie delight": "pz_veggie",
+    "veggie": "pz_veggie",
+    "vegetarian": "pz_veggie",
+    "veg delight": "pz_veggie",
+    "chicken tikka masala": "pz_chicken_tikka",
+    "chicken tikka": "pz_chicken_tikka",
+    "tikka masala": "pz_chicken_tikka",
+    "tikka": "pz_chicken_tikka",
+    "bbq chicken": "pz_bbq_chicken",
+    "bbq": "pz_bbq_chicken",
+    "devilled chicken": "pz_devilled_chicken",
+    "devilled": "pz_devilled_chicken",
+    "cheese lover": "pz_cheese_lover",
+    "cheese lovers": "pz_cheese_lover",
+    "cheese pizza": "pz_cheese_lover",
+    # Beverages
+    "soft drink": "bv_soft_drink_500",
+    "soft drink 500ml": "bv_soft_drink_500",
+    "coke": "bv_soft_drink_500",
+    "coca cola": "bv_soft_drink_500",
+    "sprite": "bv_soft_drink_500",
+    "fanta": "bv_soft_drink_500",
+    "soft drink 1.5l": "bv_soft_drink_1500",
+    "large soft drink": "bv_soft_drink_1500",
+    "iced lime juice": "bv_iced_lime",
+    "lime juice": "bv_iced_lime",
+    "iced lime": "bv_iced_lime",
+    "mineral water": "bv_water",
+    "water": "bv_water",
+    "water bottle": "bv_water",
+    # Combos
+    "family combo": "cb_family",
+    "family meal": "cb_family",
+    "family pack": "cb_family",
+    "family deal": "cb_family",
+}
+
+
 class MenuItem(BaseModel):
     id: str
     name: str
@@ -100,6 +173,26 @@ class MenuRepo:
     def get_combo(self, combo_id: str) -> Optional[MenuCombo]:
         return self._combos_by_id.get(combo_id)
 
+    def find_combo_by_name(self, name: str) -> Optional[MenuCombo]:
+        raw = (name or "").strip()
+        if not raw:
+            return None
+        if raw in self._combos_by_id:
+            return self._combos_by_id[raw]
+        normalized = raw.lower()
+        if normalized in self._combos_by_id:
+            return self._combos_by_id[normalized]
+        spaced = re.sub(r"[_\-]+", " ", normalized).strip()
+        if spaced in MENU_ALIASES:
+            cid = MENU_ALIASES[spaced]
+            if cid in self._combos_by_id:
+                return self._combos_by_id[cid]
+        for combo in self._combos_by_id.values():
+            c_lower = combo.name.lower()
+            if normalized == c_lower or spaced == c_lower or spaced in c_lower:
+                return combo
+        return None
+
     def get_crust(self, crust_id_or_name: str) -> Optional[Dict[str, Any]]:
         key = crust_id_or_name.strip().lower()
         if key in self._crusts_by_id:
@@ -128,24 +221,65 @@ class MenuRepo:
         return False
 
     def find_by_name(self, name: str) -> Optional[MenuItem]:
-        """Case-insensitive name or ID lookup (also strips parenthetical notes)."""
-        normalized = name.strip().lower()
-        stripped = re.sub(r"\s*\([^)]*\)", "", normalized).strip()
+        """Case-insensitive name or ID lookup (handles colloquial aliases, underscores, hyphens, and parentheticals)."""
+        raw = name.strip()
+        if not raw:
+            return None
+
+        # Direct id hit
+        if raw in self._items_by_id:
+            return self._items_by_id[raw]
+
+        normalized = raw.lower()
         if normalized in self._items_by_id:
             return self._items_by_id[normalized]
 
-        # 1. Exact name match
+        # Normalized with underscores/hyphens replaced by space
+        spaced = re.sub(r"[_\-]+", " ", normalized).strip()
+        stripped = re.sub(r"\s*\([^)]*\)", "", spaced).strip()
+
+        # Check explicit aliases
+        for candidate in (normalized, spaced, stripped):
+            if candidate in MENU_ALIASES:
+                target_id = MENU_ALIASES[candidate]
+                if target_id in self._items_by_id:
+                    return self._items_by_id[target_id]
+
+        # Check category prefixes (e.g. 'pz_supreme' -> 'supreme' or vice-versa)
+        for prefix in ("pz_", "sd_", "ds_", "bv_"):
+            if normalized.startswith(prefix):
+                without_prefix = normalized[len(prefix):].replace("_", " ")
+                if without_prefix in MENU_ALIASES and MENU_ALIASES[without_prefix] in self._items_by_id:
+                    return self._items_by_id[MENU_ALIASES[without_prefix]]
+            else:
+                with_prefix = f"{prefix}{normalized}"
+                if with_prefix in self._items_by_id:
+                    return self._items_by_id[with_prefix]
+                with_prefix_underscored = f"{prefix}{normalized.replace(' ', '_')}"
+                if with_prefix_underscored in self._items_by_id:
+                    return self._items_by_id[with_prefix_underscored]
+
+        # 1. Exact name match (checking item.name)
         for item in self._items_by_id.values():
             item_lower = item.name.lower()
             item_stripped = re.sub(r"\s*\([^)]*\)", "", item_lower).strip()
-            if normalized == item_lower or stripped == item_lower or stripped == item_stripped:
+            if normalized == item_lower or spaced == item_lower or stripped == item_lower or stripped == item_stripped:
                 return item
 
-        # 2. Substring match
+        # 2. Substring match (prioritize the longest, most specific matching item name)
+        matches: List[Tuple[int, MenuItem]] = []
         for item in self._items_by_id.values():
             item_lower = item.name.lower()
-            if normalized in item_lower or (stripped and stripped in item_lower):
-                return item
+            item_stripped = re.sub(r"\s*\([^)]*\)", "", item_lower).strip()
+            for cand in (spaced, stripped, normalized):
+                if cand and (cand in item_lower or item_lower in cand or cand in item_stripped):
+                    matches.append((len(item_lower), item))
+                    break
+
+        if matches:
+            matches.sort(key=lambda x: x[0], reverse=True)
+            return matches[0][1]
+
         return None
 
     def list_items(

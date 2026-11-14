@@ -5,7 +5,7 @@ last_updated: 2026-11-09
 # Kandy Outlet
 
 ## Address and location
-Pizza Hut Kandy, 8 Sample Street, Kandy City Centre (sample address). Approximate coordinates: 7.2906, 80.6337. Within walking distance of Kandy Lake and the city bus stand.
+Pizza Hut Kandy outlet is located at 8 Sample Street, Kandy City Centre (sample address) (Kandy branch எங்கே இருக்கு / கண்டி கிளை எங்கே உள்ளது / නුවර ශාඛාව කොහෙද පිහිටා තිබෙන්නේ). Approximate coordinates: 7.2906, 80.6337. Within walking distance of Kandy Lake and the city bus stand.
 
 ## Opening hours
 Kandy outlet is open every day from 11:00 to 22:30. Last dine-in orders at 21:45. Last delivery orders at 22:00.

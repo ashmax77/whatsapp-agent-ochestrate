@@ -367,7 +367,7 @@ class ToolRegistry:
         ))
         self.register(ToolSpec(
             name="escalation.handoff",
-            description="Hand the conversation over to human staff for complaints, refunds, severe allergies, food safety, or manager requests.",
+            description="Hand the conversation over to human staff for complaints, refunds, severe medical allergies (anaphylaxis), food poisoning/illness, or explicit customer requests for a human/manager. Do NOT use for routine menu questions or dietary inquiries.",
             schema_cls=EscalationHandoffInput,
             handler=escalation_handoff_tool,
             allowed_stages=["browsing", "building_cart", "collecting_fulfilment", "confirming"],

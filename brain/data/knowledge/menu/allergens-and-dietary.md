@@ -20,7 +20,7 @@ We do not have a dedicated vegan pizza in this sample menu. Customers who avoid 
 Gluten-free bases are not available. All pizzas, breads, and pasta contain gluten.
 
 ## Meat and pork
-This sample menu contains no pork products. Please confirm halal or other dietary certification with the outlet because this sample data does not make certification claims.
+We do not serve any pork, bacon, or pork pepperoni on any pizzas or menu items across our menu. All our meat pizzas use chicken or beef toppings. Please confirm halal or other dietary certification with the outlet because this sample data does not make certification claims.
 
 ## Nutrition information
 Detailed calorie information is not available through WhatsApp. Customers may request it from the outlet.

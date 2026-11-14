@@ -46,6 +46,13 @@ def cart_add_item(
 
     item = repo.get_item(item_id) or repo.find_by_name(item_id)
     if not item:
+        combo = repo.get_combo(item_id) or repo.find_combo_by_name(item_id)
+        if combo:
+            return {
+                "ok": False,
+                "error": "USE_CART_ADD_COMBO",
+                "message": f"'{combo.name}' is a combo meal. Please use cart.add_combo to add it with your choices.",
+            }
         return {
             "ok": False,
             "error": "ITEM_NOT_FOUND",
@@ -129,7 +136,7 @@ def cart_add_combo(
             "message": f"Quantity must be between {MIN_QTY} and {MAX_QTY} (got {qty}).",
         }
 
-    combo = repo.get_combo(combo_id)
+    combo = repo.get_combo(combo_id) or repo.find_combo_by_name(combo_id)
     if not combo:
         return {
             "ok": False,
