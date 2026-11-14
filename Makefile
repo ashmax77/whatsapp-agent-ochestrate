@@ -25,3 +25,13 @@ test:
 eval:
 	cd brain && $(notdir $(PYTHON)) -m eval.run --suite $(SUITE) $(EVAL_FLAGS)
 
+retention:
+	cd brain && $(notdir $(PYTHON)) -m app.db.retention
+
+load-test:
+	cd brain && $(notdir $(PYTHON)) -m eval.load_test --concurrency 20
+
+docker-build:
+	docker compose build
+
+
