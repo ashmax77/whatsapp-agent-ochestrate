@@ -12,6 +12,7 @@ Journey of one question:
   5. Answer: numbered sources, strict grounding prompt; cited [n] markers are
      mapped back to chunk ids for audit and stripped from the WhatsApp text.
 """
+import os
 import re
 import logging
 from typing import Dict, Any, List, Optional
@@ -207,6 +208,9 @@ class KnowledgeAgent(BaseAgent):
             return resolved_by_embed
 
         # 2. Secondary: If embed resolution was neutral, attempt LLM rewrite
+        if os.environ.get("HF_HUB_OFFLINE") == "1":
+            return question
+
         try:
             resp = self.llm.complete(
                 system=REWRITE_PROMPT,
@@ -400,6 +404,10 @@ class KnowledgeAgent(BaseAgent):
         hits = self._annotate_availability(hits)
 
         # Step 5: grounded answer with citations
+        if os.environ.get("HF_HUB_OFFLINE") == "1":
+            top_hit = hits[0]
+            return self._result(self._fallback_summary(top_hit), True, [top_hit.id], "rag_fallback", search_query)
+
         turns = self._recent_history(history)
         try:
             resp = self.llm.complete(

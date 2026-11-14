@@ -46,6 +46,7 @@ def _run_coro(coro):
 _SIMULATOR_SYSTEM = (
     "You are simulating a WhatsApp customer chatting with Pizza Hut Sri Lanka.\n"
     "Stay strictly in character for the persona and goal below. Send short, realistic WhatsApp messages (1-2 sentences).\n"
+    "If the Bot asks you to confirm or reply YES to place your order (and your goal is to order), reply YES to confirm.\n"
     "Once your goal is completely finished (e.g. you received an order number, or were refused/handed off as appropriate), "
     "reply with exactly: [SIM_DONE]"
 )

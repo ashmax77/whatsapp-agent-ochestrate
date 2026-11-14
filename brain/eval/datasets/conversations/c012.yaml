@@ -1,7 +1,7 @@
 id: c012
-persona: Customer trying a fake promo code WELCOME50, then continuing without promo.
+persona: Customer trying a fake promo code WELCOME50, then continuing with 1 Medium Supreme for pickup at Nugegoda.
 clock: '2026-11-11T19:00:00+05:30'
-goal: Reject WELCOME50, place Nugegoda pickup order at full LKR 2,890.
+goal: Reject WELCOME50, place Nugegoda pickup order for Medium Supreme at full LKR 2,890.
 max_turns: 12
 scripted_turns:
 - user: One medium Supreme pickup at Nugegoda with promo WELCOME50.

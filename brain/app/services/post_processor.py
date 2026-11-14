@@ -100,6 +100,7 @@ def collect_verified_prices(
         try:
             sub = pricing.subtotal(session.cart)
             verified.add(sub)
+            verified.add(sub + 250)  # subtotal + standard delivery fee
         except Exception:
             pass
         for line in session.cart:
@@ -111,6 +112,22 @@ def collect_verified_prices(
             item = menu_repo.get_item(line.item_id)
             if item:
                 verified.update(item.sizes.values())
+
+    # 3. From placed order if cart was reset
+    if session.last_order_no:
+        try:
+            from app.db.order_repo import order_repo
+            past = order_repo.get_order_by_no(session.last_order_no)
+            if past:
+                verified.add(past.total)
+                verified.add(past.subtotal)
+                verified.add(past.delivery_fee)
+                verified.add(past.discount)
+                for oi in past.items:
+                    verified.add(oi.unit_price)
+                    verified.add(oi.line_total)
+        except Exception:
+            pass
 
     return verified
 
