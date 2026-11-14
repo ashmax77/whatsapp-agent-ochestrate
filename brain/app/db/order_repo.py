@@ -1,7 +1,7 @@
 import json
 import sqlite3
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from app.config import settings
@@ -414,6 +414,50 @@ class OrderRepo:
             )
             for r in rows
         ]
+
+
+    def forget_customer(self, user_id: str) -> Dict[str, Any]:
+        """GDPR / Right-to-be-Forgotten customer data erasure."""
+        with self._connect() as conn:
+            # Delete chat logs
+            cur_logs = conn.execute("DELETE FROM message_logs WHERE user_id = ?", (user_id,))
+            deleted_logs = cur_logs.rowcount
+
+            # Delete handoffs
+            cur_handoffs = conn.execute("DELETE FROM handoffs WHERE user_id = ?", (user_id,))
+            deleted_handoffs = cur_handoffs.rowcount
+
+            # Redact PII from past orders
+            cur_orders = conn.execute(
+                "UPDATE orders SET address = '[REDACTED]', lat = NULL, lng = NULL WHERE user_id = ?",
+                (user_id,),
+            )
+            anonymized_orders = cur_orders.rowcount
+
+            # Anonymize customer profile
+            cur_cust = conn.execute(
+                "UPDATE customers SET push_name = '[REDACTED]' WHERE user_id = ?",
+                (user_id,),
+            )
+            customer_found = cur_cust.rowcount > 0
+
+            conn.commit()
+
+        return {
+            "user_id": user_id,
+            "deleted_logs": deleted_logs,
+            "deleted_handoffs": deleted_handoffs,
+            "anonymized_orders": anonymized_orders,
+            "customer_anonymized": customer_found,
+        }
+
+    def prune_old_records(self, max_log_age_days: int = 30) -> int:
+        """Purges message logs older than max_log_age_days per privacy policy."""
+        cutoff = (clock.now() - timedelta(days=max_log_age_days)).isoformat()
+        with self._connect() as conn:
+            cur = conn.execute("DELETE FROM message_logs WHERE created_at < ?", (cutoff,))
+            conn.commit()
+            return cur.rowcount
 
 
 order_repo = OrderRepo()
