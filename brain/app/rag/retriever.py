@@ -88,6 +88,7 @@ class _IndexState(BaseModel):
     documents: List[Dict[str, Any]] = []
     matrix: Optional[np.ndarray] = None
     bm25: Optional[BM25Okapi] = None
+    vocab: Optional[set] = None
 
 
 class _CrossEncoderReranker:
@@ -197,10 +198,12 @@ class KnowledgeRetriever:
         matrix = None
         if documents:
             matrix = np.array([d["vector"] for d in documents], dtype=np.float32)
-        bm25 = BM25Okapi([tokenize(d["text"]) for d in documents]) if documents else None
+        corpus = [tokenize(d["text"]) for d in documents] if documents else []
+        bm25 = BM25Okapi(corpus) if corpus else None
+        vocab = set().union(*corpus) if corpus else set()
         self._state = _IndexState(
             index_path=index_path, manifest_mtime=mtime, backend=backend,
-            documents=documents, matrix=matrix, bm25=bm25,
+            documents=documents, matrix=matrix, bm25=bm25, vocab=vocab,
         )
         self._query_api_failed = False
 
@@ -333,10 +336,28 @@ class KnowledgeRetriever:
         except Exception:
             named_query_items = []
 
+        # Domain relevance check:
+        # If query terms are largely absent from the domain KB (e.g. flight tickets, Python scripts, cricket, repair),
+        # or multi-word query only incidentally matches 1 token and cosine similarity is not high,
+        # suppress the scores so off-topic queries return 0 hits.
+        q_tokens = tokenize(query)
+        kb_vocab = state.vocab or set()
+        in_kb_count = sum(1 for t in q_tokens if t in kb_vocab)
+        kb_ratio = (in_kb_count / len(q_tokens)) if q_tokens else 0.0
+
         hits: List[Hit] = []
         for doc_i, score in zip(order, scores):
             doc = state.documents[doc_i]
             meta = doc.get("meta", {})
+            cos = found[doc_i]["cos"]
+
+            # Domain relevance check for built-in fusion reranker (when ce is None)
+            if ce is None:
+                doc_tokens = set(tokenize(doc.get("text", "")))
+                overlap = len(set(q_tokens) & doc_tokens)
+                if (kb_ratio <= 0.50 or (len(q_tokens) >= 3 and overlap <= 1)) and cos < 0.75:
+                    score = 0.0
+
             # Small boost for the customer's own outlet
             if branch_id and meta.get("branch_id") == branch_id:
                 score += 0.05

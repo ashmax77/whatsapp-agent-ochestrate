@@ -201,9 +201,27 @@ class TestOrchestratorIntegration(unittest.IsolatedAsyncioTestCase):
 
 
 class TestReferentResolutionWithEmbeddings(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from app.config import settings
+        from app.rag.retriever import retriever
+        from tests.helpers import TempIndex
+
+        if settings.INDEX_INFO_FILE.exists():
+            cls.index = None
+            cls.retriever = retriever
+        else:
+            cls.index = TempIndex()
+            cls.retriever = cls.index.retriever()
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.index:
+            cls.index.cleanup()
+
     def test_pronoun_rewrite_with_embedding_similarity(self):
         from app.agents.knowledge_agent import knowledge_agent
-        from app.rag.retriever import retriever
+        retriever = self.retriever
 
         # 1. Single item in history: "Tell me about Margherita pizza" -> "Is it spicy?"
         h1 = [
