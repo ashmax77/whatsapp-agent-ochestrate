@@ -1,0 +1,29 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Development & test artifacts
+.git/
+.gitignore
+tests/
+eval/reports/
+scratch/
+.system_generated/
+*.log
+
+# CRITICAL SECURITY (Decision D17): Internal Staff & HR knowledge must never be baked into container image
+data/knowledge/internal/
+data/knowledge/internal/**
+
+# Secrets
+.env
+.env.local

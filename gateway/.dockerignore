@@ -1,0 +1,12 @@
+node_modules/
+npm-debug.log*
+.git/
+.gitignore
+
+# Auth state directory is mounted as a volume at runtime, not baked into build
+auth_state/
+auth_state/**
+
+# Secrets
+.env
+.env.local
