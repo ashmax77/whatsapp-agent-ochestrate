@@ -55,3 +55,7 @@ plan.md
 # Evaluation ad-hoc reports (keep baseline.json tracked)
 brain/eval/reports/*
 !brain/eval/reports/baseline.json
+
+# Documentation (user requested to ignore docs folder when committing)
+docs/
+docs/**
