@@ -106,5 +106,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Prepare environment templates
+        run: |
+          cp brain/.env.example brain/.env
+          cp gateway/.env.example gateway/.env
+
       - name: Validate Docker Compose Configuration
         run: docker compose config
