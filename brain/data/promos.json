@@ -1,0 +1,57 @@
+{
+  "promos": [
+    {
+      "code": "FRIDAY10",
+      "name": "Friday Feast",
+      "type": "percent",
+      "value": 10,
+      "min_subtotal": 3000,
+      "valid_days": ["Fri"],
+      "valid_from": null,
+      "valid_until": null,
+      "branches": null,
+      "requires_student_id": false,
+      "stackable": false
+    },
+    {
+      "code": "STUDENT15",
+      "name": "Student Tuesday",
+      "type": "percent",
+      "value": 15,
+      "min_subtotal": 2000,
+      "valid_days": ["Tue"],
+      "valid_from": null,
+      "valid_until": "2026-12-31",
+      "branches": ["nugegoda", "kandy"],
+      "requires_student_id": true,
+      "stackable": false
+    },
+    {
+      "code": "AVURUDU",
+      "name": "Avurudu Combo",
+      "type": "percent",
+      "value": 15,
+      "min_subtotal": 2500,
+      "valid_days": null,
+      "valid_from": "2026-04-05",
+      "valid_until": "2026-04-20",
+      "branches": null,
+      "requires_student_id": false,
+      "stackable": false
+    },
+    {
+      "code": "MONSOON",
+      "name": "Monsoon Special",
+      "type": "percent",
+      "value": 10,
+      "min_subtotal": 2000,
+      "valid_days": null,
+      "valid_from": "2026-10-01",
+      "valid_until": "2026-10-31",
+      "branches": null,
+      "requires_student_id": false,
+      "stackable": false
+    }
+  ]
+}
+

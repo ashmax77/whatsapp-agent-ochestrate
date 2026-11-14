@@ -1,0 +1,293 @@
+{
+  "currency": "LKR",
+  "pizzas": [
+    {
+      "id": "pz_margherita",
+      "name": "Margherita",
+      "category": "pizza",
+      "description": "Classic tomato sauce with mozzarella and basil.",
+      "sizes": {
+        "personal": 1490,
+        "medium": 2490,
+        "large": 3490
+      },
+      "veg": true,
+      "allergens": ["gluten", "milk"],
+      "available": true
+    },
+    {
+      "id": "pz_supreme",
+      "name": "Supreme",
+      "category": "pizza",
+      "description": "Pepperoni, chicken sausage, mushrooms, capsicum and onions.",
+      "sizes": {
+        "personal": 1790,
+        "medium": 2890,
+        "large": 3990
+      },
+      "veg": false,
+      "allergens": ["gluten", "milk"],
+      "available": true
+    },
+    {
+      "id": "pz_veggie",
+      "name": "Veggie Delight",
+      "category": "pizza",
+      "description": "Mushrooms, sweet corn, olives, capsicum and tomato.",
+      "sizes": {
+        "personal": 1590,
+        "medium": 2590,
+        "large": 3590
+      },
+      "veg": true,
+      "allergens": ["gluten", "milk"],
+      "available": true
+    },
+    {
+      "id": "pz_chicken_tikka",
+      "name": "Chicken Tikka Masala",
+      "category": "pizza",
+      "description": "Chicken marinated in tikka spices with onions, capsicum, and mint mayo.",
+      "sizes": {
+        "personal": 1890,
+        "medium": 2990,
+        "large": 4190
+      },
+      "veg": false,
+      "allergens": ["gluten", "milk", "egg"],
+      "available": true
+    },
+    {
+      "id": "pz_bbq_chicken",
+      "name": "BBQ Chicken",
+      "category": "pizza",
+      "description": "Grilled chicken pieces, red onion, sweetcorn, and smoky BBQ sauce.",
+      "sizes": {
+        "personal": 1890,
+        "medium": 2990,
+        "large": 4190
+      },
+      "veg": false,
+      "allergens": ["gluten", "milk", "soy"],
+      "available": true
+    },
+    {
+      "id": "pz_devilled_chicken",
+      "name": "Devilled Chicken",
+      "category": "pizza",
+      "description": "Chicken in sweet, tangy, spicy devilled sauce with capsicum and onions.",
+      "sizes": {
+        "personal": 1990,
+        "medium": 3190,
+        "large": 4390
+      },
+      "veg": false,
+      "allergens": ["gluten", "milk", "soy"],
+      "available": true
+    },
+    {
+      "id": "pz_cheese_lover",
+      "name": "Cheese Lover",
+      "category": "pizza",
+      "description": "Four-cheese blend of mozzarella, cheddar, processed cheese, and herbs.",
+      "sizes": {
+        "personal": 1690,
+        "medium": 2790,
+        "large": 3890
+      },
+      "veg": true,
+      "allergens": ["gluten", "milk"],
+      "available": true
+    }
+  ],
+  "sides": [
+    {
+      "id": "sd_garlic_bread",
+      "name": "Garlic Bread",
+      "category": "side",
+      "description": "Toasted bread with garlic butter and herbs (4 pieces).",
+      "sizes": {
+        "regular": 690
+      },
+      "veg": true,
+      "allergens": ["gluten", "milk"],
+      "available": true
+    },
+    {
+      "id": "sd_cheesy_garlic_bread",
+      "name": "Cheesy Garlic Bread",
+      "category": "side",
+      "description": "Garlic bread topped with melted mozzarella cheese (4 pieces).",
+      "sizes": {
+        "regular": 990
+      },
+      "veg": true,
+      "allergens": ["gluten", "milk"],
+      "available": true
+    },
+    {
+      "id": "sd_chicken_wings",
+      "name": "Chicken Wings",
+      "category": "side",
+      "description": "Six crispy wings with BBQ, Hot Devilled, or Plain Salted sauce.",
+      "sizes": {
+        "regular": 1490
+      },
+      "veg": false,
+      "allergens": ["gluten", "soy"],
+      "options": {
+        "sauce": ["BBQ", "Hot Devilled", "Plain Salted"]
+      },
+      "available": true
+    },
+    {
+      "id": "sd_potato_wedges",
+      "name": "Potato Wedges",
+      "category": "side",
+      "description": "Seasoned crispy potato wedges with tomato dip.",
+      "sizes": {
+        "regular": 790
+      },
+      "veg": true,
+      "allergens": ["gluten"],
+      "available": true
+    },
+    {
+      "id": "sd_chicken_alfredo_pasta",
+      "name": "Chicken Alfredo Pasta",
+      "category": "side",
+      "description": "Penne in creamy white sauce with grilled chicken, mushrooms, parmesan.",
+      "sizes": {
+        "regular": 1890
+      },
+      "veg": false,
+      "allergens": ["gluten", "milk", "egg"],
+      "available": true
+    }
+  ],
+  "desserts": [
+    {
+      "id": "ds_choc_lava_cake",
+      "name": "Chocolate Lava Cake",
+      "category": "dessert",
+      "description": "Warm chocolate cake with a molten centre.",
+      "sizes": {
+        "regular": 790
+      },
+      "veg": true,
+      "allergens": ["gluten", "milk", "egg"],
+      "available": true
+    },
+    {
+      "id": "ds_ice_cream_cup",
+      "name": "Ice Cream Cup",
+      "category": "dessert",
+      "description": "Single cup of vanilla or chocolate ice cream. Zone 1 delivery only.",
+      "sizes": {
+        "regular": 450
+      },
+      "veg": true,
+      "allergens": ["milk"],
+      "delivery_zone_limit": "z1",
+      "options": {
+        "flavour": ["vanilla", "chocolate"]
+      },
+      "available": true
+    }
+  ],
+  "beverages": [
+    {
+      "id": "bv_soft_drink_500",
+      "name": "Soft Drink (500ml)",
+      "category": "beverage",
+      "description": "Bottled soft drink 500ml in cola, lemon-lime, or orange.",
+      "sizes": {
+        "regular": 350
+      },
+      "veg": true,
+      "allergens": [],
+      "options": {
+        "flavour": ["cola", "lemon-lime", "orange"]
+      },
+      "available": true
+    },
+    {
+      "id": "bv_soft_drink_1500",
+      "name": "Soft Drink (1.5L)",
+      "category": "beverage",
+      "description": "Bottled soft drink 1.5 litre in cola, lemon-lime, or orange.",
+      "sizes": {
+        "regular": 750
+      },
+      "veg": true,
+      "allergens": [],
+      "options": {
+        "flavour": ["cola", "lemon-lime", "orange"]
+      },
+      "available": true
+    },
+    {
+      "id": "bv_iced_lime",
+      "name": "Iced Lime Juice",
+      "category": "beverage",
+      "description": "Freshly made lightly sweetened iced lime juice.",
+      "sizes": {
+        "regular": 400
+      },
+      "veg": true,
+      "allergens": [],
+      "available": true
+    },
+    {
+      "id": "bv_water",
+      "name": "Mineral Water",
+      "category": "beverage",
+      "description": "Still bottled water 500ml.",
+      "sizes": {
+        "regular": 200
+      },
+      "veg": true,
+      "allergens": [],
+      "available": true
+    }
+  ],
+  "crusts": [
+    {"id": "classic_pan", "name": "Classic Pan", "surcharge": 0},
+    {"id": "thin_crispy", "name": "Thin and Crispy", "surcharge": 0},
+    {
+      "id": "cheese_stuffed",
+      "name": "Cheese-Stuffed Edge",
+      "surcharges": {
+        "personal": 300,
+        "medium": 500,
+        "large": 700
+      }
+    }
+  ],
+  "extra_toppings": [
+    {"id": "extra_cheese", "name": "Extra Cheese", "surcharge": 350},
+    {"id": "mushrooms", "name": "Mushrooms", "surcharge": 250},
+    {"id": "olives", "name": "Olives", "surcharge": 250},
+    {"id": "onions", "name": "Onions", "surcharge": 150},
+    {"id": "capsicum", "name": "Capsicum", "surcharge": 150},
+    {"id": "sweetcorn", "name": "Sweetcorn", "surcharge": 200},
+    {"id": "chicken", "name": "Chicken", "surcharge": 400}
+  ],
+  "combos": [
+    {
+      "id": "cb_family",
+      "name": "Family Combo",
+      "category": "combo",
+      "description": "1 Large Pizza + 1 Medium Pizza + 1 Garlic Bread + 1.5L Soft Drink",
+      "price": 6490,
+      "slots": {
+        "large_pizza": {"category": "pizza", "size": "large"},
+        "medium_pizza": {"category": "pizza", "size": "medium"},
+        "side": {"item_id": "sd_garlic_bread"},
+        "beverage": {"item_id": "bv_soft_drink_1500"}
+      },
+      "available": true
+    }
+  ]
+}
+

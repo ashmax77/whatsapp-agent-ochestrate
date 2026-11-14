@@ -1,0 +1,72 @@
+{
+  "min_order_lkr": 1500,
+  "branches": [
+    {
+      "id": "colombo07",
+      "name": "Colombo 07 (Cinnamon Gardens)",
+      "lat": 6.9060,
+      "lng": 79.8650,
+      "max_km": 8,
+      "hours": {
+        "open": "10:30",
+        "close": "23:00"
+      },
+      "last_delivery_order": "22:30",
+      "last_dine_in_order": "22:15",
+      "zones": [
+        {"id": "z1", "max_km": 3, "fee": 0, "eta_min": 35},
+        {"id": "z2", "max_km": 8, "fee": 250, "eta_min": 45}
+      ],
+      "area_aliases": [
+        "colombo 01", "colombo 02", "colombo 03", "colombo 04",
+        "colombo 05", "colombo 06", "colombo 07", "colombo 08",
+        "cinnamon gardens", "fort", "pettah", "bambalapitiya", "kollupitiya"
+      ],
+      "closed_dates": []
+    },
+    {
+      "id": "nugegoda",
+      "name": "Nugegoda",
+      "lat": 6.8649,
+      "lng": 79.8997,
+      "max_km": 8,
+      "hours": {
+        "open": "10:30",
+        "close": "23:00"
+      },
+      "last_delivery_order": "22:30",
+      "last_dine_in_order": "22:15",
+      "zones": [
+        {"id": "z1", "max_km": 3, "fee": 0, "eta_min": 35},
+        {"id": "z2", "max_km": 8, "fee": 250, "eta_min": 45}
+      ],
+      "area_aliases": [
+        "nugegoda", "delkanda", "maharagama", "gangodawila",
+        "dehiwala", "mount lavinia", "rajagiriya", "kotte"
+      ],
+      "closed_dates": []
+    },
+    {
+      "id": "kandy",
+      "name": "Kandy (City Centre)",
+      "lat": 7.2906,
+      "lng": 80.6337,
+      "max_km": 6,
+      "hours": {
+        "open": "11:00",
+        "close": "22:30"
+      },
+      "last_delivery_order": "22:00",
+      "last_dine_in_order": "21:45",
+      "zones": [
+        {"id": "z1", "max_km": 3, "fee": 0, "eta_min": 35},
+        {"id": "z2", "max_km": 6, "fee": 250, "eta_min": 50}
+      ],
+      "area_aliases": [
+        "kandy", "peradeniya", "katugastota", "suduhumpola", "asgiriya"
+      ],
+      "closed_dates": []
+    }
+  ]
+}
+

@@ -32,10 +32,8 @@ env/
 venv/
 ENV/
 
-# Data & Vector Storage
-brain/data/*.json
+# Data & Vector Storage (ignore SQLite databases and local vector stores)
 brain/data/*.db
-data/menu.json
 brain/data/chroma/
 data/chroma/
 
